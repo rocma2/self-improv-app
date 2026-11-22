@@ -22,7 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CutCornerShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
@@ -56,7 +56,7 @@ import kotlin.math.sin
  * [labels] can have two lines separated by \n. Tapping picks the nearest axis.
  */
 @Composable
-fun RadarChart(values: List<Float>, labels: List<String>, color: Color, modifier: Modifier = Modifier, onTap: ((Int) -> Unit)? = null) {
+fun RadarChart(values: List<Float>, labels: List<String>, color: Color, modifier: Modifier = Modifier, highlight: Int = -1, onTap: ((Int) -> Unit)? = null) {
     val n = values.size
     val grow = remember(values) { Animatable(0f) }
     LaunchedEffect(values) { grow.animateTo(1f, tween(900, easing = FastOutSlowInEasing)) }
@@ -83,8 +83,14 @@ fun RadarChart(values: List<Float>, labels: List<String>, color: Color, modifier
         for (i in 0 until n) drawLine(C.track, c, pt(i, 1f), strokeWidth = 1.5f)
         val shape = poly { values[it].coerceIn(0.03f, 1f) * grow.value }
         drawPath(shape, color.copy(alpha = 0.28f))
-        drawPath(shape, color, style = Stroke(width = 5f))
-        for (i in 0 until n) drawCircle(color, 7f, pt(i, values[i].coerceIn(0.03f, 1f) * grow.value))
+        drawPath(shape, color.copy(alpha = 0.25f), style = Stroke(width = 14f))
+        drawPath(shape, color, style = Stroke(width = 4f))
+        for (i in 0 until n) {
+            val p = pt(i, values[i].coerceIn(0.03f, 1f) * grow.value)
+            val dot = if (i == highlight) C.gold else color
+            drawCircle(dot.copy(alpha = 0.3f), 16f, p)
+            drawCircle(dot, 8f, p)
+        }
         val paint = android.graphics.Paint().apply {
             this.color = C.text.toArgb(); textSize = textPx; textAlign = android.graphics.Paint.Align.CENTER; isAntiAlias = true
             isFakeBoldText = true
@@ -113,8 +119,8 @@ fun SkillsRadarCard(state: AppState, onOpen: (Skill) -> Unit) {
             overview.forEach { (s, l, _) ->
                 val hp = state.skill(s).hp
                 Column(
-                    Modifier.weight(1f).border(1.dp, (if (hp < 40) C.hp else C.blue).copy(alpha = 0.6f), CutCornerShape(6.dp))
-                        .background(C.surface, CutCornerShape(6.dp)).clickable { onOpen(s) }.padding(6.dp),
+                    Modifier.weight(1f).border(1.dp, (if (hp < 40) C.hp else C.blue).copy(alpha = 0.6f), RoundedCornerShape(6.dp * 2))
+                        .background(C.surface, RoundedCornerShape(6.dp * 2)).clickable { onOpen(s) }.padding(6.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(s.emoji, fontSize = 18.sp)
@@ -134,18 +140,19 @@ fun SkillDialog(state: AppState, skill: Skill, onDismiss: () -> Unit) {
     val sk = state.skill(skill)
     val info = Leveling.skillInfo(sk.xp)
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
-        AppCard(title = "${skill.emoji} ${skill.label}") {
+        AppCard(title = "${skill.emoji} ${skill.label}", solid = true) {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 SysText("Level ${info.level}", size = 22.sp, modifier = Modifier.fillMaxWidth())
                 LabeledBar("XP", "${info.intoLevel} / ${info.levelSize}", info.fraction, C.cyan)
                 LabeledBar("HP", "${sk.hp} / 100", sk.hp / 100f, C.hp)
-                RadarChart(subs.map { it.score / 100f }, subs.map { "${it.name}\n${it.score}" }, C.violet)
+                RadarChart(subs.map { it.score / 100f }, subs.map { "${it.name}\n${it.score}" }, C.purple, highlight = subs.indexOf(weak))
                 subs.forEach { st ->
                     Column(Modifier.padding(vertical = 3.dp)) {
                         Row {
                             Text(st.name, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                             Text("${st.score}", fontWeight = FontWeight.Bold, color = if (st == weak) C.gold else C.text)
                         }
+                        Bar(st.score / 100f, if (st == weak) C.gold else C.purple, height = 4)
                         Text(st.detail, fontSize = 12.sp, color = C.muted)
                     }
                 }
@@ -155,7 +162,7 @@ fun SkillDialog(state: AppState, skill: Skill, onDismiss: () -> Unit) {
                     Text(weak.tip, fontSize = 14.sp)
                 }
                 Spacer(Modifier.height(8.dp))
-                Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth(), shape = CutCornerShape(8.dp)) { Text("CLOSE") }
+                Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp * 2)) { Text("CLOSE") }
             }
         }
     }
@@ -166,20 +173,19 @@ fun SkillDialog(state: AppState, skill: Skill, onDismiss: () -> Unit) {
 fun CheckInCard(state: AppState, onClaim: () -> Unit) {
     val idx = com.ascend.app.domain.Rpg.checkInIndex(state)
     AppCard(title = "Daily check-in", border = C.gold, pulse = true) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             for (i in 0 until 7) {
-                val color = when { i < idx -> C.green; i == idx -> C.gold; else -> C.muted }
-                Column(
-                    Modifier.weight(1f).border(1.dp, color.copy(alpha = 0.7f), CutCornerShape(4.dp)).padding(vertical = 4.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(if (i < idx) "✔" else if (i == 6) "🛡️" else if (i == 2) "🎁" else if (i == 4) "⚗️" else "🪙", fontSize = 14.sp)
-                    Text("${i + 1}", fontSize = 11.sp, color = color)
+                val color = when { i < idx -> C.green; i == idx -> C.gold; else -> Color.White.copy(alpha = 0.15f) }
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    androidx.compose.foundation.layout.Box(
+                        Modifier.fillMaxWidth().height(8.dp).background(color, RoundedCornerShape(4.dp)),
+                    )
+                    Text("${i + 1}", fontSize = 11.sp, color = if (i <= idx) color else C.muted)
                 }
             }
         }
         Spacer(Modifier.height(8.dp))
-        Button(onClick = onClaim, modifier = Modifier.fillMaxWidth(), shape = CutCornerShape(8.dp)) {
+        Button(onClick = onClaim, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp * 2)) {
             Text("CLAIM DAY ${idx + 1}: ${com.ascend.app.domain.Rpg.CHECK_IN_REWARDS[idx]}")
         }
     }

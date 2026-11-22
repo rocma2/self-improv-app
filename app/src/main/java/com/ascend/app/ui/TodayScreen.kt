@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CutCornerShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AssistChip
@@ -36,6 +36,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -86,23 +89,21 @@ fun TodayScreen(state: AppState, onLog: (LogTarget) -> Unit, onSettings: () -> U
                     if (state.mode.appLock) Text("TikTok and YouTube are locked until this is cleared.", fontSize = 13.sp, color = C.hp,
                         textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
                     Spacer(Modifier.height(10.dp))
-                    Button(onClick = { Repository.update { Game.completePenalty(it, today, p.id) } }, shape = CutCornerShape(8.dp),
+                    Button(onClick = { Repository.update { Game.completePenalty(it, today, p.id) } }, shape = RoundedCornerShape(8.dp * 2),
                         colors = ButtonDefaults.buttonColors(containerColor = C.hp), modifier = Modifier.fillMaxWidth()) { Text("CLEARED") }
                 }
             }
         }
 
         item {
-            AppCard(title = "Daily quest") {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Today's trial", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = C.cyan, modifier = Modifier.weight(1f))
-                    Text("$doneCount / ${quests.size}", fontWeight = FontWeight.Bold, color = if (doneCount == quests.size) C.green else C.text)
-                }
-                Spacer(Modifier.height(6.dp))
-                HorizontalDivider(color = C.blue.copy(alpha = 0.3f))
-                quests.forEach { q -> QuestRow(state, q, onLog, onFocus) }
-                HorizontalDivider(color = C.blue.copy(alpha = 0.3f))
-                Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                SectionTitle("Daily quests", Modifier.weight(1f))
+                Text("$doneCount / ${quests.size}", fontWeight = FontWeight.Bold, color = if (doneCount == quests.size) C.green else C.muted)
+            }
+        }
+        items(quests, key = { it.id }) { q -> QuestRow(state, q, onLog, onFocus) }
+        item {
+            Column {
                 if (today.toString() in state.restDays) {
                     Text("Recovery day. Nothing today counts as a miss.", color = C.green, fontSize = 13.sp)
                 } else if (state.mode.hpLoss > 0 && doneCount < quests.size) {
@@ -122,7 +123,7 @@ fun TodayScreen(state: AppState, onLog: (LogTarget) -> Unit, onSettings: () -> U
         item {
             if (today.toString() !in state.restDays) {
                 if (Game.canTakeRestDay(state, today)) {
-                    OutlinedButton(onClick = { Repository.edit { Game.takeRestDay(it, today) } }, modifier = Modifier.fillMaxWidth(), shape = CutCornerShape(8.dp)) {
+                    OutlinedButton(onClick = { Repository.edit { Game.takeRestDay(it, today) } }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp * 2)) {
                         Text("Sick or wrecked? Use this week's recovery day")
                     }
                 } else Text("Recovery day already used this week.", color = C.muted, fontSize = 12.sp)
@@ -159,7 +160,7 @@ private fun StatusWindow(state: AppState, onSettings: () -> Unit) {
     val hp = state.skills.values.map { it.hp }.average().takeIf { !it.isNaN() } ?: 100.0
     AppCard(title = "Status") {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            RankEmblem(rank, C.blue, 68.dp)
+            XpRing(rank, info.fraction)
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 SysText("Level ${info.level}", size = 24.sp)
@@ -169,7 +170,7 @@ private fun StatusWindow(state: AppState, onSettings: () -> Unit) {
             IconButton(onClick = onSettings) { Icon(Icons.Default.Settings, contentDescription = "Settings", tint = C.muted) }
         }
         Spacer(Modifier.height(12.dp))
-        LabeledBar("XP", "${info.intoLevel} / ${info.levelSize}", info.fraction, C.cyan)
+        LabeledBar("XP", "${info.intoLevel} / ${info.levelSize} · ${(info.fraction * 100).roundToInt()}% to level ${info.level + 1}", info.fraction, C.cyan)
         LabeledBar("HP", "${hp.roundToInt()} / 100", (hp / 100).toFloat(), C.hp)
         Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -189,7 +190,7 @@ private fun StatusWindow(state: AppState, onSettings: () -> Unit) {
         }
         if (state.statPoints > 0) {
             Spacer(Modifier.height(8.dp))
-            Button(onClick = { allocating = true }, modifier = Modifier.fillMaxWidth(), shape = CutCornerShape(8.dp),
+            Button(onClick = { allocating = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp * 2),
                 colors = ButtonDefaults.buttonColors(containerColor = C.gold.copy(alpha = 0.85f))) {
                 Text("${state.statPoints} STAT POINT(S) TO SPEND", color = C.bg)
             }
@@ -212,7 +213,7 @@ private fun QuickLog(onLog: (LogTarget) -> Unit, onFood: () -> Unit) {
         SectionTitle("Quick log")
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             val chip: @Composable (String, () -> Unit) -> Unit = { label, action ->
-                AssistChip(onClick = action, label = { Text(label, fontWeight = FontWeight.Bold) }, shape = CutCornerShape(6.dp),
+                AssistChip(onClick = action, label = { Text(label, fontWeight = FontWeight.Bold) }, shape = RoundedCornerShape(6.dp * 2),
                     colors = AssistChipDefaults.assistChipColors(containerColor = C.surface2, labelColor = C.text))
             }
             chip("🏃 Run") { onLog(LogTarget.Run()) }
@@ -259,7 +260,13 @@ private fun QuestRow(state: AppState, q: Quest, onLog: (LogTarget) -> Unit, onFo
             QuestKind.SCREEN -> onFocus()
         }
     }
-    Column(Modifier.fillMaxWidth().clickable(enabled = !done && !skipped) { action() }.padding(vertical = 9.dp)) {
+    val tint = if (done) C.green else C.blue
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+            .background(tint.copy(alpha = if (done) 0.08f else 0.10f))
+            .border(1.dp, tint.copy(alpha = if (done) 0.4f else 0.3f), RoundedCornerShape(16.dp))
+            .clickable(enabled = !done && !skipped) { action() }.padding(horizontal = 14.dp, vertical = 12.dp),
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.width(30.dp)) { Text(if (done) "✔" else q.skill.emoji, fontSize = 18.sp, color = C.green) }
             Column(Modifier.weight(1f)) {

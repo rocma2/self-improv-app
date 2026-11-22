@@ -57,7 +57,7 @@ fun OnboardingScreen() {
                 )
                 Spacer(Modifier.height(16.dp))
                 Button(onClick = { accepted = true }, modifier = Modifier.fillMaxWidth().height(50.dp),
-                    shape = androidx.compose.foundation.shape.CutCornerShape(8.dp)) { Text("ACCEPT", fontSize = 16.sp) }
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp * 2)) { Text("ACCEPT", fontSize = 16.sp) }
             }
         }
         return

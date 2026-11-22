@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -70,6 +69,10 @@ object C {
     val track = Color(0xFF1A2747)
     val panelTop = Color(0xFF0D1A3A)
     val panelBottom = Color(0xFF070C1C)
+    val purple = Color(0xFF9D85FF)
+    // Frosted glass panel fill, see-through over the background glow.
+    val glassTop = Color(0x2678AAFF)
+    val glassBottom = Color(0x1478AAFF)
 }
 
 val Body = FontFamily(
@@ -115,7 +118,13 @@ fun AscendTheme(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = scheme, typography = Typography().withFont(Body), content = content)
 }
 
-val PanelShape = CutCornerShape(topStart = 14.dp, bottomEnd = 14.dp)
+val PanelShape = RoundedCornerShape(22.dp)
+
+/** Holo System backdrop: a deep blue glow from the top left fading into near black. */
+val AppBackground = Brush.radialGradient(
+    0f to Color(0xFF13306B), 0.55f to Color(0xFF060B1C), 1f to Color(0xFF03050C),
+    center = Offset(150f, 0f), radius = 2200f,
+)
 
 /** Glowing text used for headings. */
 fun glow(color: Color = C.blue, radius: Float = 18f) = Shadow(color = color, offset = Offset.Zero, blurRadius = radius)
@@ -134,7 +143,7 @@ fun SysText(text: String, size: TextUnit = 18.sp, color: Color = C.text, glowCol
 @Composable
 fun PanelHeader(title: String, color: Color = C.cyan) {
     Row(
-        Modifier.border(1.dp, color.copy(alpha = 0.7f), CutCornerShape(6.dp)).background(color.copy(alpha = 0.08f), CutCornerShape(6.dp))
+        Modifier.border(1.dp, color.copy(alpha = 0.7f), RoundedCornerShape(20.dp)).background(color.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
             .padding(horizontal = 12.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -145,20 +154,21 @@ fun PanelHeader(title: String, color: Color = C.cyan) {
 }
 
 /**
- * Every card in the app is a "system panel": cut corners, glowing border, deep gradient.
+ * Every card in the app is a frosted "holo" panel: rounded, see-through, thin glowing border.
+ * [solid] puts a dark base under the glass for dialogs and toasts.
  * [border] tints the glow (red for penalties, green for done). [title] adds a header tab.
  */
 @Composable
-fun AppCard(modifier: Modifier = Modifier, border: Color? = null, title: String? = null, pulse: Boolean = false, content: @Composable () -> Unit) {
+fun AppCard(modifier: Modifier = Modifier, border: Color? = null, title: String? = null, pulse: Boolean = false, solid: Boolean = false, content: @Composable () -> Unit) {
     val tint = border ?: C.blue
     val alpha by if (pulse) rememberInfiniteTransition(label = "pulse").animateFloat(
         0.45f, 1f, infiniteRepeatable(tween(1400, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "a",
     ) else animateFloatAsState(if (border != null) 0.9f else 0.55f, label = "b")
     Box(
         modifier.fillMaxWidth()
-            .shadow(14.dp, PanelShape, ambientColor = tint, spotColor = tint)
-            .background(Brush.verticalGradient(listOf(C.panelTop, C.panelBottom)), PanelShape)
-            .border(BorderStroke(1.2.dp, Brush.verticalGradient(listOf(tint.copy(alpha = alpha), tint.copy(alpha = alpha * 0.35f)))), PanelShape),
+            .then(if (solid) Modifier.background(C.panelBottom, PanelShape) else Modifier)
+            .background(Brush.verticalGradient(listOf(C.glassTop, C.glassBottom)), PanelShape)
+            .border(BorderStroke(1.dp, Brush.verticalGradient(listOf(tint.copy(alpha = alpha * 0.75f), tint.copy(alpha = alpha * 0.25f)))), PanelShape),
     ) {
         Column(Modifier.padding(16.dp)) {
             if (title != null) {
@@ -206,8 +216,8 @@ fun LabeledBar(label: String, value: String, fraction: Float, color: Color) {
 fun Pill(text: String, color: Color) {
     Text(
         text.uppercase(),
-        modifier = Modifier.border(1.dp, color.copy(alpha = 0.7f), CutCornerShape(4.dp)).background(color.copy(alpha = 0.12f), CutCornerShape(4.dp))
-            .padding(horizontal = 8.dp, vertical = 2.dp),
+        modifier = Modifier.border(1.dp, color.copy(alpha = 0.7f), RoundedCornerShape(20.dp)).background(color.copy(alpha = 0.14f), RoundedCornerShape(20.dp))
+            .padding(horizontal = 10.dp, vertical = 2.dp),
         color = color,
         fontSize = 12.sp,
         fontWeight = FontWeight.Bold,
@@ -243,9 +253,26 @@ fun Stepper(label: String, value: String, onMinus: () -> Unit, onPlus: () -> Uni
     Column(modifier) {
         Text(label, fontSize = 13.sp, color = C.muted)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            OutlinedButton(onClick = onMinus, contentPadding = PaddingValues(0.dp), modifier = Modifier.width(44.dp), shape = CutCornerShape(6.dp)) { Text("−", fontSize = 18.sp) }
+            OutlinedButton(onClick = onMinus, contentPadding = PaddingValues(0.dp), modifier = Modifier.width(44.dp), shape = RoundedCornerShape(6.dp * 2)) { Text("−", fontSize = 18.sp) }
             Text(value, modifier = Modifier.width(88.dp), fontSize = 22.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-            OutlinedButton(onClick = onPlus, contentPadding = PaddingValues(0.dp), modifier = Modifier.width(44.dp), shape = CutCornerShape(6.dp)) { Text("+", fontSize = 18.sp) }
+            OutlinedButton(onClick = onPlus, contentPadding = PaddingValues(0.dp), modifier = Modifier.width(44.dp), shape = RoundedCornerShape(6.dp * 2)) { Text("+", fontSize = 18.sp) }
         }
+    }
+}
+
+/** Rank letter inside a glowing XP ring (Holo status panel). */
+@Composable
+fun XpRing(rank: String, fraction: Float, size: Dp = 76.dp, color: Color = C.cyan) {
+    val f by animateFloatAsState(fraction.coerceIn(0f, 1f), tween(1100, easing = FastOutSlowInEasing), label = "ring")
+    Box(Modifier.size(size), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.size(size)) {
+            val stroke = this.size.minDimension * 0.085f
+            val inset = stroke / 2f
+            val arcSize = androidx.compose.ui.geometry.Size(this.size.width - stroke, this.size.height - stroke)
+            drawArc(Color.White.copy(alpha = 0.08f), 0f, 360f, false, Offset(inset, inset), arcSize, style = Stroke(stroke))
+            drawArc(color.copy(alpha = 0.35f), -90f, 360f * f, false, Offset(inset, inset), arcSize, style = Stroke(stroke * 2.2f, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            drawArc(color, -90f, 360f * f, false, Offset(inset, inset), arcSize, style = Stroke(stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+        }
+        Text(rank, style = TextStyle(fontFamily = Display, fontSize = (size.value * 0.36f).sp, color = Color.White, shadow = glow(color, 20f), fontWeight = FontWeight.Black))
     }
 }

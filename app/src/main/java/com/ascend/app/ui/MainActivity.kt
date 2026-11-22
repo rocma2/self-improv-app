@@ -32,6 +32,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
@@ -63,7 +71,13 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-enum class Tab(val label: String, val emoji: String) { TODAY("Today", "⚔️"), TRAIN("Train", "🏃"), GATES("Gates", "🌀"), STATS("Stats", "📊"), FOCUS("Focus", "📵") }
+enum class Tab(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    TODAY("Today", androidx.compose.material.icons.Icons.Filled.Home),
+    TRAIN("Train", androidx.compose.material.icons.Icons.Filled.DateRange),
+    GATES("Gates", androidx.compose.material.icons.Icons.Filled.Star),
+    STATS("Stats", androidx.compose.material.icons.Icons.Filled.Person),
+    FOCUS("Focus", androidx.compose.material.icons.Icons.Filled.Lock),
+}
 
 /** Which quick-log sheet is open. */
 sealed class LogTarget {
@@ -117,20 +131,9 @@ fun AscendApp() {
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) { data -> SystemSnackbar(data.visuals.message) } },
-        bottomBar = {
-            if (!settings) NavigationBar(containerColor = C.panelBottom) {
-                Tab.entries.forEach { t ->
-                    NavigationBarItem(
-                        selected = tab == t,
-                        onClick = { tab = t },
-                        icon = { Text(t.emoji, fontSize = 20.sp) },
-                        label = { Text(t.label) },
-                        colors = NavigationBarItemDefaults.colors(indicatorColor = C.blue.copy(alpha = 0.3f), selectedTextColor = C.text, unselectedTextColor = C.muted),
-                    )
-                }
-            }
-        },
-        containerColor = C.bg,
+        bottomBar = { if (!settings) HoloNavBar(tab) { tab = it } },
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
+        modifier = Modifier.background(AppBackground),
     ) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
             if (settings) SettingsScreen(state, onBack = { settings = false })
@@ -163,7 +166,7 @@ private fun LevelUpDialog(lv: GameEvent.LevelUp, onDismiss: () -> Unit) {
     LaunchedEffect(Unit) { scale.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.45f, stiffness = 300f)) }
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Box(Modifier.graphicsLayer { scaleX = scale.value; scaleY = scale.value }) {
-            AppCard(title = "Notification", pulse = true) {
+            AppCard(title = "Notification", pulse = true, solid = true) {
                 Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                     SysText("Level up!", size = 30.sp, color = C.text, glowColor = C.cyan)
                     androidx.compose.foundation.layout.Spacer(Modifier.padding(6.dp))
@@ -173,7 +176,7 @@ private fun LevelUpDialog(lv: GameEvent.LevelUp, onDismiss: () -> Unit) {
                     Text("Title: ${lv.title}", color = C.muted)
                     Leveling.nextTitle(lv.level)?.let { Text("Next title at level ${it.first}: ${it.second}", color = C.muted, fontSize = 13.sp) }
                     androidx.compose.foundation.layout.Spacer(Modifier.padding(8.dp))
-                    androidx.compose.material3.Button(onClick = onDismiss, shape = androidx.compose.foundation.shape.CutCornerShape(8.dp)) { Text("ACCEPT") }
+                    androidx.compose.material3.Button(onClick = onDismiss, shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp * 2)) { Text("ACCEPT") }
                 }
             }
         }
@@ -184,7 +187,7 @@ private fun LevelUpDialog(lv: GameEvent.LevelUp, onDismiss: () -> Unit) {
 @Composable
 private fun SystemSnackbar(message: String) {
     Box(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-        AppCard(border = if (message.contains("💔") || message.contains("collapsed")) C.hp else C.cyan) {
+        AppCard(solid = true, border = if (message.contains("💔") || message.contains("collapsed")) C.hp else C.cyan) {
             Text(message.removePrefix("[SYSTEM] "), fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = C.text)
         }
     }
@@ -196,7 +199,7 @@ private fun RankUpDialog(rank: String, onDismiss: () -> Unit) {
     LaunchedEffect(Unit) { scale.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.4f, stiffness = 200f)) }
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Box(Modifier.graphicsLayer { scaleX = scale.value; scaleY = scale.value }) {
-            AppCard(title = "Rank up", border = C.gold, pulse = true) {
+            AppCard(title = "Rank up", border = C.gold, pulse = true, solid = true) {
                 Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                     SysText("You are now", size = 16.sp, glowColor = C.gold)
                     androidx.compose.foundation.layout.Spacer(Modifier.padding(6.dp))
@@ -208,7 +211,33 @@ private fun RankUpDialog(rank: String, onDismiss: () -> Unit) {
                         Text("Rank $r needs %,d total XP. Every rank takes 3x the last.".format(xp), color = C.muted, fontSize = 13.sp, textAlign = TextAlign.Center)
                     }
                     androidx.compose.foundation.layout.Spacer(Modifier.padding(8.dp))
-                    androidx.compose.material3.Button(onClick = onDismiss, shape = androidx.compose.foundation.shape.CutCornerShape(8.dp)) { Text("ACCEPT") }
+                    androidx.compose.material3.Button(onClick = onDismiss, shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp * 2)) { Text("ACCEPT") }
+                }
+            }
+        }
+    }
+}
+
+/** Floating pill-shaped nav bar over the glass screens. */
+@Composable
+private fun HoloNavBar(selected: Tab, onSelect: (Tab) -> Unit) {
+    Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp)) {
+        androidx.compose.foundation.layout.Row(
+            Modifier.fillMaxWidth().height(64.dp)
+                .background(androidx.compose.ui.graphics.Color(0xD90A142D), RoundedCornerShape(32.dp))
+                .border(1.dp, C.blue.copy(alpha = 0.45f), RoundedCornerShape(32.dp)),
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Tab.entries.forEach { t ->
+                val on = t == selected
+                Column(
+                    Modifier.weight(1f).height(56.dp).clip(RoundedCornerShape(28.dp)).clickable { onSelect(t) },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+                ) {
+                    androidx.compose.material3.Icon(t.icon, contentDescription = t.label, tint = if (on) C.cyan else C.muted, modifier = Modifier.size(22.dp))
+                    Text(t.label, fontSize = 12.sp, fontWeight = if (on) FontWeight.Bold else FontWeight.Medium, color = if (on) C.cyan else C.muted)
                 }
             }
         }

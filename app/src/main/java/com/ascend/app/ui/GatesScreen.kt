@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CutCornerShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -117,16 +117,16 @@ private fun DungeonPanel() {
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Rpg.DUNGEON_SKILLS.forEach { s ->
-                    FilterChip(selected = skill == s, onClick = { skill = s }, label = { Text("${s.emoji} ${s.label}") }, shape = CutCornerShape(6.dp))
+                    FilterChip(selected = skill == s, onClick = { skill = s }, label = { Text("${s.emoji} ${s.label}") }, shape = RoundedCornerShape(6.dp * 2))
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 listOf(25, 45, 60, 90).forEach { m ->
-                    FilterChip(selected = length == m, onClick = { length = m }, label = { Text("$m min") }, shape = CutCornerShape(6.dp))
+                    FilterChip(selected = length == m, onClick = { length = m }, label = { Text("$m min") }, shape = RoundedCornerShape(6.dp * 2))
                 }
             }
             Spacer(Modifier.height(8.dp))
-            Button(onClick = { startedAt = System.currentTimeMillis() }, modifier = Modifier.fillMaxWidth(), shape = CutCornerShape(8.dp)) {
+            Button(onClick = { startedAt = System.currentTimeMillis() }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp * 2)) {
                 Text("ENTER DUNGEON")
             }
         } else {
@@ -142,7 +142,7 @@ private fun DungeonPanel() {
                         val s = skill; val m = length
                         startedAt = 0L
                         act { st, ev -> Rpg.dungeon(st, Repository.today(), s, m, cleared = true, events = ev) }
-                    }, modifier = Modifier.fillMaxWidth(), shape = CutCornerShape(8.dp),
+                    }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp * 2),
                         colors = ButtonDefaults.buttonColors(containerColor = C.green.copy(alpha = 0.8f))) { Text("CLAIM REWARD") }
                 } else {
                     Text("Stay in. Leaving early still logs your minutes, but no bonus.", color = C.muted, fontSize = 13.sp, textAlign = TextAlign.Center)
@@ -181,7 +181,7 @@ private fun GateCard(state: AppState, g: Gate) {
         Text("Reward: +${g.xp} XP · +${g.gold} 🪙 · 🎁", fontSize = 13.sp, color = C.gold)
         Spacer(Modifier.height(6.dp))
         when (g.status) {
-            GateStatus.OPEN -> Button(onClick = { act { s, _ -> Rpg.enterGate(s, g.id) } }, shape = CutCornerShape(8.dp),
+            GateStatus.OPEN -> Button(onClick = { act { s, _ -> Rpg.enterGate(s, g.id) } }, shape = RoundedCornerShape(8.dp * 2),
                 colors = ButtonDefaults.buttonColors(containerColor = if (g.red) C.hp.copy(alpha = 0.85f) else C.blue)) { Text("ENTER GATE") }
             GateStatus.ENTERED -> Pill("Inside the gate", color)
             GateStatus.CLEARED -> Pill("Cleared", C.green)
@@ -232,7 +232,7 @@ private fun JobPanel(state: AppState) {
                     color = C.muted, fontSize = 14.sp)
                 Spacer(Modifier.height(8.dp))
                 Button(onClick = { act { s, ev -> ev += GameEvent.Message("[SYSTEM] Job change trial started."); Rpg.startJobTrial(s, today) } },
-                    shape = CutCornerShape(8.dp)) { Text("START THE TRIAL") }
+                    shape = RoundedCornerShape(8.dp * 2)) { Text("START THE TRIAL") }
             }
             !Rpg.canChooseJob(state) -> {
                 val p = Rpg.jobTrialProgress(state)
@@ -243,7 +243,7 @@ private fun JobPanel(state: AppState) {
                 Spacer(Modifier.height(6.dp))
                 JobClass.entries.forEach { j ->
                     OutlinedButton(onClick = { act { s, ev -> ev += GameEvent.Message("[SYSTEM] Job change complete: ${j.label}."); Rpg.chooseJob(s, j) } },
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp), shape = CutCornerShape(8.dp)) {
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp), shape = RoundedCornerShape(8.dp * 2)) {
                         Column(Modifier.fillMaxWidth()) {
                             Text(j.label, fontWeight = FontWeight.Bold, color = C.gold)
                             Text(j.description, fontSize = 12.sp, color = C.muted)
@@ -266,7 +266,7 @@ private fun ShopPanel(state: AppState) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             ShopTab.entries.forEach { t ->
                 val n = if (t == ShopTab.BAG) state.inventory.values.sum() else 0
-                FilterChip(selected = tab == t, onClick = { tab = t }, label = { Text(if (n > 0) "${t.label} ($n)" else t.label) }, shape = CutCornerShape(6.dp))
+                FilterChip(selected = tab == t, onClick = { tab = t }, label = { Text(if (n > 0) "${t.label} ($n)" else t.label) }, shape = RoundedCornerShape(6.dp * 2))
             }
         }
         Spacer(Modifier.height(6.dp))
@@ -276,7 +276,7 @@ private fun ShopPanel(state: AppState) {
                 Item.entries.filter { it.price > 0 }.forEach { item ->
                     ItemRow(item.emoji, item.label, item.description) {
                         Button(onClick = { act { s, ev -> ev += GameEvent.Message("[SYSTEM] Bought ${item.label}."); Rpg.buy(s, item) } },
-                            enabled = state.gold >= item.price, shape = CutCornerShape(6.dp)) { Text("${item.price} 🪙") }
+                            enabled = state.gold >= item.price, shape = RoundedCornerShape(6.dp * 2)) { Text("${item.price} 🪙") }
                     }
                 }
             }
@@ -286,7 +286,7 @@ private fun ShopPanel(state: AppState) {
                 owned.forEach { item ->
                     ItemRow(item.emoji, "${item.label} ×${state.inventory[item]}", item.description) {
                         if (item == Item.SHIELD) Pill("Auto", C.cyan)
-                        else OutlinedButton(onClick = { act { s, ev -> Rpg.useItem(s, item, Repository.today(), ev) } }, shape = CutCornerShape(6.dp)) {
+                        else OutlinedButton(onClick = { act { s, ev -> Rpg.useItem(s, item, Repository.today(), ev) } }, shape = RoundedCornerShape(6.dp * 2)) {
                             Text(if (item == Item.MYSTERY_BOX) "OPEN" else "USE")
                         }
                     }
@@ -322,7 +322,7 @@ private fun SkipPassRow(state: AppState) {
         else -> "Turns today's ${workout.title} into a rest day: no HP loss, no penalty, no XP. Price doubles each time (resets after 4 weeks). 1 per week."
     }
     ItemRow("🎟️", "Skip pass", why) {
-        Button(onClick = { act { s, ev -> Rpg.skipWorkout(s, today, ev) } }, enabled = Rpg.canSkip(state, today), shape = CutCornerShape(6.dp),
+        Button(onClick = { act { s, ev -> Rpg.skipWorkout(s, today, ev) } }, enabled = Rpg.canSkip(state, today), shape = RoundedCornerShape(6.dp * 2),
             colors = ButtonDefaults.buttonColors(containerColor = C.hp.copy(alpha = 0.8f))) { Text("$price 🪙") }
     }
 }
@@ -336,7 +336,7 @@ private fun RewardsTab(state: AppState) {
         Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("🎖️ ${r.name}", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             Button(onClick = { act { s, ev -> ev += GameEvent.Message("[SYSTEM] Reward unlocked: ${r.name}. Enjoy it, you earned it."); Rpg.buyReward(s, r.id) } },
-                enabled = state.gold >= r.cost, shape = CutCornerShape(6.dp)) { Text("${r.cost} 🪙") }
+                enabled = state.gold >= r.cost, shape = RoundedCornerShape(6.dp * 2)) { Text("${r.cost} 🪙") }
             TextButton(onClick = { Repository.edit { Rpg.removeReward(it, r.id) } }) { Text("✕", color = C.muted) }
         }
     }
@@ -357,7 +357,7 @@ private fun RewardsTab(state: AppState) {
 @Composable
 fun AllocateDialog(state: AppState, onDismiss: () -> Unit) {
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
-        AppCard(title = "Stat points", pulse = state.statPoints > 0) {
+        AppCard(title = "Stat points", pulse = state.statPoints > 0, solid = true) {
             Text("${state.statPoints} point(s) to spend", fontWeight = FontWeight.Bold, color = C.gold)
             Text("STR gym · AGI running · VIT sleep + weight · INT reading + studying · WIL focus + money", fontSize = 12.sp, color = C.muted)
             Spacer(Modifier.height(8.dp))
@@ -365,11 +365,11 @@ fun AllocateDialog(state: AppState, onDismiss: () -> Unit) {
                 Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(attr, fontWeight = FontWeight.Bold, modifier = Modifier.width(50.dp))
                     Text("$v", style = TextStyle(fontFamily = Display, fontSize = 20.sp, color = C.text, shadow = glow(C.blue, 12f)), modifier = Modifier.weight(1f))
-                    OutlinedButton(onClick = { Repository.edit { Rpg.allocate(it, attr) } }, enabled = state.statPoints > 0, shape = CutCornerShape(6.dp)) { Text("+") }
+                    OutlinedButton(onClick = { Repository.edit { Rpg.allocate(it, attr) } }, enabled = state.statPoints > 0, shape = RoundedCornerShape(6.dp * 2)) { Text("+") }
                 }
             }
             Spacer(Modifier.height(6.dp))
-            Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth(), shape = CutCornerShape(8.dp)) { Text("CLOSE") }
+            Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp * 2)) { Text("CLOSE") }
         }
     }
 }
