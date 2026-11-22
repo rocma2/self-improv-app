@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Upward chevrons: "ascend". 108dp adaptive canvas, art kept inside the 66dp safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#7C5CFF"
+        android:pathData="M54,30 L76,52 L68,60 L54,46 L40,60 L32,52 Z" />
+    <path
+        android:fillColor="#22D3EE"
+        android:pathData="M54,50 L76,72 L68,80 L54,66 L40,80 L32,72 Z" />
+</vector>
