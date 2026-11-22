@@ -15,7 +15,6 @@ import androidx.core.content.ContextCompat
 import com.ascend.app.R
 import com.ascend.app.data.Repository
 import com.ascend.app.domain.QuestEngine
-import com.ascend.app.domain.QuestStatus
 import com.ascend.app.domain.TrainingPlan
 import com.ascend.app.ui.MainActivity
 import java.time.LocalDate
@@ -92,7 +91,7 @@ object Reminders {
         if (!s.onboarded) return null
         val today = LocalDate.now()
         val quests = QuestEngine.questsFor(s, today)
-        val open = quests.filter { q -> QuestEngine.record(s, q)?.status != QuestStatus.DONE && QuestEngine.progress(s, q) < 1.0 && !q.optional }
+        val open = quests.filter { q -> QuestEngine.record(s, q) == null && QuestEngine.progress(s, q) < 1.0 && !q.optional }
         val penalties = QuestEngine.pendingPenalties(s, today)
         return when (kind) {
             Kind.MORNING -> {

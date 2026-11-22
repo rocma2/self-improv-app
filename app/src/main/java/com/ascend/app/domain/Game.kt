@@ -20,7 +20,7 @@ object Game {
     class Result(val state: AppState, val events: List<GameEvent>)
 
     fun xpMultiplier(state: AppState, date: LocalDate): Double =
-        state.mode.xpMultiplier * if (TrainingPlan.isWinter(state, date)) 1.2 else 1.0
+        state.mode.xpMultiplier * (if (TrainingPlan.isWinter(state, date)) 1.2 else 1.0) * (if (state.xpBoostDay == date.iso()) 1.5 else 1.0)
 
     // ---------- XP and HP ----------
 
@@ -35,11 +35,18 @@ object Game {
         val oldLevel = Leveling.level(state.totalXp)
         val total = state.totalXp + xp
         val newLevel = Leveling.level(total)
-        if (newLevel > oldLevel) events += GameEvent.LevelUp(newLevel, Leveling.title(newLevel))
+        if (newLevel > oldLevel) {
+            events += GameEvent.LevelUp(newLevel, Leveling.title(newLevel))
+            Rpg.Feature.entries.filter { it.level in (oldLevel + 1)..newLevel }
+                .forEach { events += GameEvent.Message("[SYSTEM] New system unlocked: ${it.label}.") }
+        }
+        val oldRank = Leveling.rankIndex(state.totalXp)
+        val newRank = Leveling.rankIndex(total)
+        if (newRank > oldRank) events += GameEvent.RankUp(Leveling.RANKS[newRank])
         val key = date.iso()
         return state.copy(
-            gold = state.gold + (xp / 4).coerceAtLeast(1),
-            statPoints = state.statPoints + Rpg.POINTS_PER_LEVEL * (newLevel - oldLevel),
+            gold = state.gold + (xp / 4).coerceAtLeast(1) + 500 * (newRank - oldRank),
+            statPoints = state.statPoints + Rpg.POINTS_PER_LEVEL * (newLevel - oldLevel) + 5 * (newRank - oldRank),
             skills = state.skills + (skill to newSk),
             totalXp = total,
             dailyXp = state.dailyXp + (key to ((state.dailyXp[key] ?: 0) + xp)),
@@ -135,8 +142,14 @@ object Game {
                 q.optional -> s = s.copy(questRecords = s.questRecords + QuestRecord(q.id, q.date, q.skill, QuestStatus.REST))
                 else -> {
                     s = s.copy(questRecords = s.questRecords + QuestRecord(q.id, q.date, q.skill, QuestStatus.MISSED))
-                    s = damage(s, q.skill, s.mode.hpLoss, events)
-                    missed += q
+                    val shields = s.inventory[Item.SHIELD] ?: 0
+                    if (shields > 0 && s.mode.hpLoss > 0) {
+                        s = s.copy(inventory = s.inventory + (Item.SHIELD to shields - 1))
+                        events += GameEvent.Message("[SYSTEM] Shield broke: ${q.title} missed, but no HP loss and no penalty.")
+                    } else {
+                        s = damage(s, q.skill, s.mode.hpLoss, events)
+                        missed += q
+                    }
                 }
             }
         }

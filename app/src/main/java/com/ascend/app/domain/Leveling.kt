@@ -50,18 +50,34 @@ object Leveling {
 
     fun nextTitle(level: Int): Pair<Int, String>? = titles.firstOrNull { it.first > level }
 
-    /** Letter rank shown in the status window. */
-    fun rank(level: Int): String = when {
-        level >= 70 -> "S"
-        level >= 50 -> "A"
-        level >= 35 -> "B"
-        level >= 20 -> "C"
-        level >= 10 -> "D"
-        else -> "E"
+    /**
+     * Letter ranks grow exponentially: each rank needs 3x the total XP of the one before.
+     * D 2,500 · C 7,500 · B 22,500 · A 67,500 · S 202,500. At a normal pace that is about
+     * a week to D, a month to C, a couple of months to B, half a year to A and close to two years to S.
+     */
+    val RANKS = listOf("E", "D", "C", "B", "A", "S")
+    const val RANK_BASE_XP = 2_500L
+    const val RANK_FACTOR = 3L
+
+    fun xpForRank(index: Int): Long {
+        if (index <= 0) return 0
+        var x = RANK_BASE_XP
+        repeat(index - 1) { x *= RANK_FACTOR }
+        return x
     }
 
-    fun nextRank(level: Int): Pair<Int, String>? =
-        listOf(10 to "D", 20 to "C", 35 to "B", 50 to "A", 70 to "S").firstOrNull { it.first > level }
+    fun rankIndex(xp: Long): Int = RANKS.indices.last { xpForRank(it) <= xp }
+
+    fun rank(xp: Long): String = RANKS[rankIndex(xp)]
+
+    /** Next rank, the total XP it needs, and how far you are from the current rank to it (0..1). */
+    fun nextRank(xp: Long): Triple<String, Long, Float>? {
+        val i = rankIndex(xp)
+        if (i >= RANKS.lastIndex) return null
+        val from = xpForRank(i)
+        val to = xpForRank(i + 1)
+        return Triple(RANKS[i + 1], to, ((xp - from).toFloat() / (to - from)).coerceIn(0f, 1f))
+    }
 
     /** Five attributes built from your skill levels. */
     fun attributes(state: AppState): List<Pair<String, Int>> {

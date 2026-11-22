@@ -10,6 +10,8 @@ enum class Item(val label: String, val emoji: String, val description: String, v
     FREEZE_CRYSTAL("Freeze crystal", "❄️", "+1 momentum freeze (max 3).", 150),
     ELIXIR("Elixir", "🧪", "+40 HP to your weakest skill.", 100),
     REST_SCROLL("Rest scroll", "📜", "An extra recovery day today, even if you used this week's.", 250),
+    SHIELD("Shield", "🛡️", "Blocks the HP loss and the penalty quest of your next missed quest.", 200),
+    XP_POTION("XP potion", "⚗️", "XP x1.5 on everything for the rest of today.", 300),
     MYSTERY_BOX("Mystery box", "🎁", "Open it for gold or a random item.", 0),
 }
 
@@ -119,6 +121,12 @@ object Rpg {
                 s = s.copy(restDays = s.restDays + today.iso())
                 events += GameEvent.Message("[SYSTEM] Recovery day granted. Nothing today counts as a miss.")
             }
+            Item.SHIELD -> return state // Shields work on their own when a quest is missed.
+            Item.XP_POTION -> {
+                if (s.xpBoostDay == today.iso()) return state
+                s = s.copy(xpBoostDay = today.iso())
+                events += GameEvent.Message("[SYSTEM] XP potion active: x1.5 XP until midnight.")
+            }
             Item.MYSTERY_BOX -> {
                 val roll = random.nextInt(100)
                 s = when {
@@ -131,6 +139,50 @@ object Rpg {
         }
         return s
     }
+
+    // ---------- Skip pass: buy your way out of one workout, at a rising price ----------
+
+    const val SKIP_BASE_PRICE = 400
+
+    /** 400 gold, doubled for every skip in the last 4 weeks. One per week at most. */
+    fun skipPrice(state: AppState, today: LocalDate): Int {
+        val recent = state.skipDays.count { !it.toDate().isBefore(today.minusDays(27)) && !it.toDate().isAfter(today) }
+        return SKIP_BASE_PRICE shl recent.coerceAtMost(4)
+    }
+
+    fun skipUsedThisWeek(state: AppState, today: LocalDate): Boolean =
+        state.skipDays.any { it.toDate().weekStart() == today.weekStart() }
+
+    /** Today's run or gym quest, if it's still open and can be skipped. */
+    fun skippableWorkout(state: AppState, today: LocalDate): Quest? =
+        QuestEngine.questsFor(state, today).firstOrNull {
+            (it.kind == QuestKind.RUN || it.kind == QuestKind.GYM) && !it.optional &&
+                QuestEngine.record(state, it) == null && QuestEngine.progress(state, it) < 1.0
+        }
+
+    fun canSkip(state: AppState, today: LocalDate): Boolean =
+        skippableWorkout(state, today) != null && !skipUsedThisWeek(state, today) && state.gold >= skipPrice(state, today)
+
+    /** The workout counts as a rest day: no XP, no HP loss, no penalty. The plan simply moves on. */
+    fun skipWorkout(state: AppState, today: LocalDate, events: MutableList<GameEvent>): AppState {
+        if (!canSkip(state, today)) return state
+        val q = skippableWorkout(state, today) ?: return state
+        val price = skipPrice(state, today)
+        events += GameEvent.Message("[SYSTEM] Skip pass used: ${q.title} is a rest day. -$price gold. Next one costs more.")
+        return state.copy(
+            gold = state.gold - price,
+            skipDays = state.skipDays + today.iso(),
+            questRecords = state.questRecords + QuestRecord(q.id, q.date, q.skill, QuestStatus.REST),
+        )
+    }
+
+    // ---------- Unlocks: one new system at a time ----------
+
+    enum class Feature(val label: String, val level: Int) { GATES("Gates", 2), SHOP("Shop", 4), JOB("Job change", JOB_LEVEL) }
+
+    fun unlocked(state: AppState, f: Feature) = Leveling.level(state.totalXp) >= f.level
+
+    fun nextUnlock(state: AppState): Feature? = Feature.entries.firstOrNull { !unlocked(state, it) }
 
     // ---------- Daily quest reward ----------
 
@@ -153,7 +205,7 @@ object Rpg {
         if (!state.onboarded) return state
         val ws = today.weekStart()
         if (state.gates.any { it.start == ws.iso() }) return state
-        val rank = Leveling.rank(Leveling.level(state.totalXp))
+        val rank = Leveling.rank(state.totalXp)
         val scale = 1.0 + 0.1 * rankIndex(rank)
         val end = ws.plusDays(6).iso()
         val week = TrainingPlan.weekIndex(state, today)
@@ -297,7 +349,7 @@ object Rpg {
 
     // ---------- Job change ----------
 
-    fun jobUnlocked(state: AppState) = Leveling.level(state.totalXp) >= JOB_LEVEL
+    fun jobUnlocked(state: AppState) = unlocked(state, Feature.JOB)
 
     fun startJobTrial(state: AppState, today: LocalDate): AppState =
         if (!jobUnlocked(state) || state.job != null || state.jobTrialStart != null) state

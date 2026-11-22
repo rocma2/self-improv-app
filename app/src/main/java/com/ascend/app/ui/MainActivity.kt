@@ -86,6 +86,7 @@ fun AscendApp() {
     var settings by rememberSaveable { mutableStateOf(false) }
     var sheet by remember { mutableStateOf<LogTarget?>(null) }
     var levelUp by remember { mutableStateOf<GameEvent.LevelUp?>(null) }
+    var rankUp by remember { mutableStateOf<String?>(null) }
     var showRecap by remember { mutableStateOf<YearMonth?>(null) }
     val snackbar = remember { SnackbarHostState() }
 
@@ -98,6 +99,7 @@ fun AscendApp() {
                 is GameEvent.QuestDone -> snackbar.showSnackbar("✅ ${e.title}  +${e.xp} XP", duration = SnackbarDuration.Short)
                 is GameEvent.NewRecord -> snackbar.showSnackbar("🏅 New record! ${e.title}", duration = SnackbarDuration.Long)
                 is GameEvent.BadgeEarned -> snackbar.showSnackbar("${e.badge.emoji} Badge unlocked: ${e.badge.title}", duration = SnackbarDuration.Long)
+                is GameEvent.RankUp -> rankUp = e.rank
                 is GameEvent.Message -> snackbar.showSnackbar(e.text, duration = SnackbarDuration.Short)
             }
         }
@@ -144,7 +146,8 @@ fun AscendApp() {
 
     sheet?.let { LogSheet(state, it, onDismiss = { sheet = null }) }
 
-    levelUp?.let { lv -> LevelUpDialog(lv) { levelUp = null } }
+    rankUp?.let { r -> RankUpDialog(r) { rankUp = null } }
+    if (rankUp == null) levelUp?.let { lv -> LevelUpDialog(lv) { levelUp = null } }
 
     showRecap?.let { month ->
         RecapDialog(state, month, onDismiss = {
@@ -164,7 +167,7 @@ private fun LevelUpDialog(lv: GameEvent.LevelUp, onDismiss: () -> Unit) {
                 Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                     SysText("Level up!", size = 30.sp, color = C.text, glowColor = C.cyan)
                     androidx.compose.foundation.layout.Spacer(Modifier.padding(6.dp))
-                    RankEmblem(Leveling.rank(lv.level), C.blue, 84.dp)
+                    RankEmblem(Leveling.rank(Repository.state.value.totalXp), C.blue, 84.dp)
                     androidx.compose.foundation.layout.Spacer(Modifier.padding(6.dp))
                     Text("You reached level ${lv.level}", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     Text("Title: ${lv.title}", color = C.muted)
@@ -183,6 +186,31 @@ private fun SystemSnackbar(message: String) {
     Box(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
         AppCard(border = if (message.contains("💔") || message.contains("collapsed")) C.hp else C.cyan) {
             Text(message.removePrefix("[SYSTEM] "), fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = C.text)
+        }
+    }
+}
+
+@Composable
+private fun RankUpDialog(rank: String, onDismiss: () -> Unit) {
+    val scale = remember { androidx.compose.animation.core.Animatable(0.3f) }
+    LaunchedEffect(Unit) { scale.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.4f, stiffness = 200f)) }
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Box(Modifier.graphicsLayer { scaleX = scale.value; scaleY = scale.value }) {
+            AppCard(title = "Rank up", border = C.gold, pulse = true) {
+                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                    SysText("You are now", size = 16.sp, glowColor = C.gold)
+                    androidx.compose.foundation.layout.Spacer(Modifier.padding(6.dp))
+                    RankEmblem(rank, C.gold, 110.dp)
+                    androidx.compose.foundation.layout.Spacer(Modifier.padding(6.dp))
+                    SysText("$rank-rank hunter", size = 24.sp, glowColor = C.gold)
+                    Text("+5 stat points · +500 gold", color = C.gold, fontWeight = FontWeight.Bold)
+                    Leveling.nextRank(Repository.state.value.totalXp)?.let { (r, xp, _) ->
+                        Text("Rank $r needs %,d total XP. Every rank takes 3x the last.".format(xp), color = C.muted, fontSize = 13.sp, textAlign = TextAlign.Center)
+                    }
+                    androidx.compose.foundation.layout.Spacer(Modifier.padding(8.dp))
+                    androidx.compose.material3.Button(onClick = onDismiss, shape = androidx.compose.foundation.shape.CutCornerShape(8.dp)) { Text("ACCEPT") }
+                }
+            }
         }
     }
 }

@@ -113,4 +113,55 @@ class RpgTest {
         assertTrue(won.totalXp > base.totalXp && won.gold > base.gold)
         assertEquals(base.totalXp, left.totalXp)
     }
+
+    @Test
+    fun ranksGrowExponentially() {
+        assertEquals("E", Leveling.rank(0))
+        assertEquals("D", Leveling.rank(2_500))
+        assertEquals("C", Leveling.rank(7_500))
+        assertEquals("B", Leveling.rank(22_500))
+        assertEquals("A", Leveling.rank(67_500))
+        assertEquals("S", Leveling.rank(202_500))
+        for (i in 2 until Leveling.RANKS.size) assertEquals(3 * Leveling.xpForRank(i - 1), Leveling.xpForRank(i))
+        val e = mutableListOf<GameEvent>()
+        val s = Game.grantXp(fresh().copy(totalXp = 2_400), Skill.READING, 200, start, e, multiply = false)
+        assertTrue(e.any { it is GameEvent.RankUp && it.rank == "D" })
+        assertTrue(s.statPoints >= 5 && s.gold >= 500)
+    }
+
+    private fun runDay(): Pair<AppState, LocalDate> {
+        var s = fresh()
+        var d = start
+        repeat(10) { if (Rpg.skippableWorkout(s, d) == null) d = d.plusDays(1) }
+        return s to d
+    }
+
+    @Test
+    fun skipPassIsLimitedAndGetsPricier() {
+        val (base, d) = runDay()
+        val e = mutableListOf<GameEvent>()
+        assertTrue(Rpg.skippableWorkout(base, d) != null)
+        assertFalse(Rpg.canSkip(base, d))
+        val rich = base.copy(gold = 5_000)
+        val skipped = Rpg.skipWorkout(rich, d, e)
+        assertEquals(5_000 - Rpg.SKIP_BASE_PRICE, skipped.gold)
+        assertEquals(QuestStatus.REST, skipped.questRecords.last().status)
+        assertFalse(Rpg.canSkip(skipped, d))
+        assertEquals(2 * Rpg.SKIP_BASE_PRICE, Rpg.skipPrice(skipped, d.plusDays(7)))
+        assertEquals(Rpg.SKIP_BASE_PRICE, Rpg.skipPrice(skipped, d.plusDays(28)))
+    }
+
+    @Test
+    fun shieldBlocksOneMissAndPotionBoostsXp() {
+        val base = fresh().let { it.copy(profile = it.profile.copy(difficulty = Difficulty.NEW_LIFE)) }
+        val shielded = Rpg.addItem(base, Item.SHIELD)
+        val r1 = Game.evaluate(base, start.plusDays(1)) { null }.state
+        val r2 = Game.evaluate(shielded, start.plusDays(1)) { null }.state
+        assertTrue(r2.skills.values.sumOf { it.hp } > r1.skills.values.sumOf { it.hp })
+        assertEquals(0, r2.inventory[Item.SHIELD])
+        val e = mutableListOf<GameEvent>()
+        val boosted = Rpg.useItem(Rpg.addItem(base, Item.XP_POTION), Item.XP_POTION, start, e)
+        assertEquals(Game.xpMultiplier(base, start) * 1.5, Game.xpMultiplier(boosted, start), 1e-9)
+        assertEquals(Game.xpMultiplier(base, start.plusDays(1)), Game.xpMultiplier(boosted, start.plusDays(1)), 1e-9)
+    }
 }

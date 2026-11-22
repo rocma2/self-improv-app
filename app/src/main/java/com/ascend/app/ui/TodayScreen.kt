@@ -151,7 +151,7 @@ private fun StatusWindow(state: AppState, onSettings: () -> Unit) {
     var allocating by remember { mutableStateOf(false) }
     if (allocating) AllocateDialog(state) { allocating = false }
     val info = Leveling.info(state.totalXp)
-    val rank = Leveling.rank(info.level)
+    val rank = Leveling.rank(state.totalXp)
     val hp = state.skills.values.map { it.hp }.average().takeIf { !it.isNaN() } ?: 100.0
     AppCard(title = "Status") {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -192,8 +192,12 @@ private fun StatusWindow(state: AppState, onSettings: () -> Unit) {
         } else if (state.allocated.isNotEmpty()) {
             TextButton(onClick = { allocating = true }) { Text("View stats", color = C.muted, fontSize = 12.sp) }
         }
-        Leveling.nextRank(info.level)?.let { (lvl, r) ->
-            Text("Rank $r at level $lvl", fontSize = 12.sp, color = C.muted, modifier = Modifier.padding(top = 6.dp))
+        Leveling.nextRank(state.totalXp)?.let { (r, xp, f) ->
+            Spacer(Modifier.height(6.dp))
+            LabeledBar("Rank $r", "%,d / %,d XP".format(state.totalXp, xp), f, C.violet)
+        }
+        com.ascend.app.domain.Rpg.nextUnlock(state)?.let { f ->
+            Text("Next system: ${f.label} at level ${f.level}", fontSize = 12.sp, color = C.muted, modifier = Modifier.padding(top = 4.dp))
         }
     }
 }
@@ -235,6 +239,7 @@ private fun counter(q: Quest, progress: Double): String {
 private fun QuestRow(state: AppState, q: Quest, onLog: (LogTarget) -> Unit, onFocus: () -> Unit) {
     val today = Repository.today()
     val done = QuestEngine.record(state, q)?.status == QuestStatus.DONE
+    val skipped = QuestEngine.record(state, q)?.status == QuestStatus.REST
     val progress = if (done) 1.0 else QuestEngine.progress(state, q)
     val xp = (q.baseXp * Game.xpMultiplier(state, today)).roundToInt()
     val action: () -> Unit = {
@@ -250,13 +255,14 @@ private fun QuestRow(state: AppState, q: Quest, onLog: (LogTarget) -> Unit, onFo
             QuestKind.SCREEN -> onFocus()
         }
     }
-    Column(Modifier.fillMaxWidth().clickable(enabled = !done) { action() }.padding(vertical = 9.dp)) {
+    Column(Modifier.fillMaxWidth().clickable(enabled = !done && !skipped) { action() }.padding(vertical = 9.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.width(30.dp)) { Text(if (done) "✔" else q.skill.emoji, fontSize = 18.sp, color = C.green) }
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(q.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = if (done) C.muted else C.text, modifier = Modifier.weight(1f, fill = false))
                     if (q.optional) { Spacer(Modifier.width(6.dp)); Pill("bonus", C.cyan) }
+                    if (skipped) { Spacer(Modifier.width(6.dp)); Pill("rest", C.muted) }
                 }
                 Text(q.detail, fontSize = 12.sp, color = C.muted, maxLines = 2)
             }

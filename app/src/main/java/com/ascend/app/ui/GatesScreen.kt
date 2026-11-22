@@ -71,18 +71,26 @@ fun GatesScreen(state: AppState) {
 
         item { DungeonPanel() }
 
-        item { SectionTitle("This week's gates") }
-        if (gates.isEmpty()) item { Text("New gates open on Monday.", color = C.muted) }
-        items(gates, key = { it.id }) { GateCard(state, it) }
+        // New systems open one at a time so the app never feels like homework.
+        if (Rpg.unlocked(state, Rpg.Feature.GATES)) {
+            item { SectionTitle("This week's gates") }
+            if (gates.isEmpty()) item { Text("New gates open on Monday.", color = C.muted) }
+            items(gates, key = { it.id }) { GateCard(state, it) }
+        }
 
         item { SectionTitle("Bosses: your big goals") }
         items(bosses, key = { it.id }) { BossCard(it, it.id in state.defeatedBosses) }
 
-        item { JobPanel(state) }
+        if (Rpg.unlocked(state, Rpg.Feature.SHOP)) item { ShopPanel(state) }
+        if (Rpg.unlocked(state, Rpg.Feature.JOB)) item { JobPanel(state) }
 
-        item { InventoryPanel(state) }
-        item { ShopPanel(state) }
-        item { RewardsPanel(state) }
+        val locked = Rpg.Feature.entries.filter { !Rpg.unlocked(state, it) }
+        if (locked.isNotEmpty()) item {
+            AppCard(title = "Sealed") {
+                locked.forEach { f -> Text("🔒 ${f.label} opens at level ${f.level}", color = C.muted, fontSize = 14.sp, modifier = Modifier.padding(vertical = 2.dp)) }
+                Text("Your gold keeps adding up until then.", color = C.muted, fontSize = 12.sp)
+            }
+        }
     }
 }
 
@@ -247,73 +255,102 @@ private fun JobPanel(state: AppState) {
     }
 }
 
-// ---------- Inventory, shop, real-life rewards ----------
+// ---------- Shop: items, skip pass, bag, real-life rewards ----------
 
-@Composable
-private fun InventoryPanel(state: AppState) {
-    val owned = Item.entries.filter { (state.inventory[it] ?: 0) > 0 }
-    AppCard(title = "Inventory") {
-        if (owned.isEmpty()) Text("Empty. Clear gates and daily quests to find boxes.", color = C.muted, fontSize = 14.sp)
-        owned.forEach { item ->
-            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(item.emoji, fontSize = 22.sp)
-                Spacer(Modifier.width(10.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("${item.label} ×${state.inventory[item]}", fontWeight = FontWeight.Bold)
-                    Text(item.description, fontSize = 12.sp, color = C.muted)
-                }
-                OutlinedButton(onClick = { act { s, ev -> Rpg.useItem(s, item, Repository.today(), ev) } }, shape = CutCornerShape(6.dp)) {
-                    Text(if (item == Item.MYSTERY_BOX) "OPEN" else "USE")
-                }
-            }
-        }
-    }
-}
+private enum class ShopTab(val label: String) { ITEMS("Items"), BAG("Bag"), REWARDS("Real life") }
 
 @Composable
 private fun ShopPanel(state: AppState) {
-    AppCard(title = "Shop") {
-        Item.entries.filter { it.price > 0 }.forEach { item ->
-            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(item.emoji, fontSize = 22.sp)
-                Spacer(Modifier.width(10.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(item.label, fontWeight = FontWeight.Bold)
-                    Text(item.description, fontSize = 12.sp, color = C.muted)
-                }
-                Button(onClick = { act { s, ev -> ev += GameEvent.Message("[SYSTEM] Bought ${item.label}."); Rpg.buy(s, item) } },
-                    enabled = state.gold >= item.price, shape = CutCornerShape(6.dp)) { Text("${item.price} 🪙") }
+    var tab by rememberSaveable { mutableStateOf(ShopTab.ITEMS) }
+    AppCard(title = "Shop · 🪙 ${state.gold}") {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            ShopTab.entries.forEach { t ->
+                val n = if (t == ShopTab.BAG) state.inventory.values.sum() else 0
+                FilterChip(selected = tab == t, onClick = { tab = t }, label = { Text(if (n > 0) "${t.label} ($n)" else t.label) }, shape = CutCornerShape(6.dp))
             }
+        }
+        Spacer(Modifier.height(6.dp))
+        when (tab) {
+            ShopTab.ITEMS -> {
+                SkipPassRow(state)
+                Item.entries.filter { it.price > 0 }.forEach { item ->
+                    ItemRow(item.emoji, item.label, item.description) {
+                        Button(onClick = { act { s, ev -> ev += GameEvent.Message("[SYSTEM] Bought ${item.label}."); Rpg.buy(s, item) } },
+                            enabled = state.gold >= item.price, shape = CutCornerShape(6.dp)) { Text("${item.price} 🪙") }
+                    }
+                }
+            }
+            ShopTab.BAG -> {
+                val owned = Item.entries.filter { (state.inventory[it] ?: 0) > 0 }
+                if (owned.isEmpty()) Text("Empty. Clear gates and daily quests to find boxes.", color = C.muted, fontSize = 14.sp)
+                owned.forEach { item ->
+                    ItemRow(item.emoji, "${item.label} ×${state.inventory[item]}", item.description) {
+                        if (item == Item.SHIELD) Pill("Auto", C.cyan)
+                        else OutlinedButton(onClick = { act { s, ev -> Rpg.useItem(s, item, Repository.today(), ev) } }, shape = CutCornerShape(6.dp)) {
+                            Text(if (item == Item.MYSTERY_BOX) "OPEN" else "USE")
+                        }
+                    }
+                }
+            }
+            ShopTab.REWARDS -> RewardsTab(state)
         }
     }
 }
 
 @Composable
-private fun RewardsPanel(state: AppState) {
+private fun ItemRow(emoji: String, title: String, detail: String, action: @Composable () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(emoji, fontSize = 22.sp)
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, fontWeight = FontWeight.Bold)
+            Text(detail, fontSize = 12.sp, color = C.muted)
+        }
+        Spacer(Modifier.width(6.dp))
+        action()
+    }
+}
+
+@Composable
+private fun SkipPassRow(state: AppState) {
+    val today = Repository.today()
+    val price = Rpg.skipPrice(state, today)
+    val workout = Rpg.skippableWorkout(state, today)
+    val why = when {
+        Rpg.skipUsedThisWeek(state, today) -> "Already used this week."
+        workout == null -> "Only works on a day with an open run or gym session."
+        else -> "Turns today's ${workout.title} into a rest day: no HP loss, no penalty, no XP. Price doubles each time (resets after 4 weeks). 1 per week."
+    }
+    ItemRow("🎟️", "Skip pass", why) {
+        Button(onClick = { act { s, ev -> Rpg.skipWorkout(s, today, ev) } }, enabled = Rpg.canSkip(state, today), shape = CutCornerShape(6.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = C.hp.copy(alpha = 0.8f))) { Text("$price 🪙") }
+    }
+}
+
+@Composable
+private fun RewardsTab(state: AppState) {
     var name by rememberSaveable { mutableStateOf("") }
     var cost by rememberSaveable { mutableStateOf("300") }
-    AppCard(title = "Real-life rewards", border = C.gold) {
-        Text("Add your own rewards and buy them with gold: a movie night, a new game, Xbox on a weekday…", color = C.muted, fontSize = 13.sp)
-        state.customRewards.forEach { r ->
-            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("🎖️ ${r.name}", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Button(onClick = { act { s, ev -> ev += GameEvent.Message("[SYSTEM] Reward unlocked: ${r.name}. Enjoy it, you earned it."); Rpg.buyReward(s, r.id) } },
-                    enabled = state.gold >= r.cost, shape = CutCornerShape(6.dp)) { Text("${r.cost} 🪙") }
-                TextButton(onClick = { Repository.edit { Rpg.removeReward(it, r.id) } }) { Text("✕", color = C.muted) }
-            }
+    Text("Your own rewards, bought with gold: a movie night, a new game, Xbox on a weekday…", color = C.muted, fontSize = 13.sp)
+    state.customRewards.forEach { r ->
+        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("🎖️ ${r.name}", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Button(onClick = { act { s, ev -> ev += GameEvent.Message("[SYSTEM] Reward unlocked: ${r.name}. Enjoy it, you earned it."); Rpg.buyReward(s, r.id) } },
+                enabled = state.gold >= r.cost, shape = CutCornerShape(6.dp)) { Text("${r.cost} 🪙") }
+            TextButton(onClick = { Repository.edit { Rpg.removeReward(it, r.id) } }) { Text("✕", color = C.muted) }
         }
-        Spacer(Modifier.height(6.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(name, { name = it.take(40) }, label = { Text("Reward") }, singleLine = true, modifier = Modifier.weight(1f))
-            Spacer(Modifier.width(6.dp))
-            OutlinedTextField(cost, { cost = it.filter(Char::isDigit).take(6) }, label = { Text("🪙") }, singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.width(90.dp))
-        }
-        TextButton(onClick = {
-            val c = cost.toIntOrNull() ?: 0
-            if (name.isNotBlank() && c > 0) { Repository.edit { Rpg.addReward(it, name, c) }; name = "" }
-        }) { Text("+ ADD REWARD") }
     }
+    Spacer(Modifier.height(6.dp))
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        OutlinedTextField(name, { name = it.take(40) }, label = { Text("Reward") }, singleLine = true, modifier = Modifier.weight(1f))
+        Spacer(Modifier.width(6.dp))
+        OutlinedTextField(cost, { cost = it.filter(Char::isDigit).take(6) }, label = { Text("🪙") }, singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.width(90.dp))
+    }
+    TextButton(onClick = {
+        val c = cost.toIntOrNull() ?: 0
+        if (name.isNotBlank() && c > 0) { Repository.edit { Rpg.addReward(it, name, c) }; name = "" }
+    }) { Text("+ ADD REWARD") }
 }
 
 /** Spend unspent stat points, one tap per point. */

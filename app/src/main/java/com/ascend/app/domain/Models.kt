@@ -212,6 +212,8 @@ data class AppState(
     val dailyRewardDays: List<String> = emptyList(),
     val customRewards: List<CustomReward> = emptyList(),
     val defeatedBosses: List<String> = emptyList(),
+    val skipDays: List<String> = emptyList(),
+    val xpBoostDay: String? = null,
 ) {
     fun skill(s: Skill): SkillState = skills[s] ?: SkillState()
     val mode: Difficulty get() = profile.difficulty
@@ -227,6 +229,7 @@ sealed class GameEvent {
     data class NewRecord(val title: String) : GameEvent()
     data class BadgeEarned(val badge: Badge) : GameEvent()
     data class Message(val text: String) : GameEvent()
+    data class RankUp(val rank: String) : GameEvent()
 }
 
 fun String.toDate(): LocalDate = LocalDate.parse(this)
