@@ -55,7 +55,7 @@ object QuestEngine {
         out += Quest("$d:SLEEP", d, Skill.SLEEP, QuestKind.SLEEP, "Sleep ${trim(sch.sleepHours)} h",
             "Log last night's sleep. Screens off 30 min before bed helps.", 20, sch.sleepHours, optional = rest)
         out += Quest("$d:FOOD", d, Skill.WEIGHT, QuestKind.FOOD, "Eat in a surplus",
-            "3 real meals + 2 snacks (e.g. milk, PB toast, rice bowl). You're building to ${Fmt.kg(state.profile.targetKg)}.", 15, 1.0, optional = rest)
+            Nutrition.target(state, date).let { f -> "About ${f.kcal} kcal and ${f.proteinG} g protein: 3 real meals + 2 snacks. You're building to ${Fmt.kg(state.profile.targetKg)}." }, 15, 1.0, optional = rest)
         if (dow == sch.weighInDay) {
             out += Quest("$d:WEIGH", d, Skill.WEIGHT, QuestKind.WEIGH_IN, "Weekly weigh-in",
                 "Morning, after the bathroom, before eating.", 25, 1.0, optional = rest)

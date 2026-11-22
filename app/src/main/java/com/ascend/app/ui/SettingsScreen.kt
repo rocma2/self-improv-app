@@ -74,6 +74,11 @@ fun SettingsScreen(state: AppState, onBack: () -> Unit) {
                 Text("Settings", fontSize = 22.sp, fontWeight = FontWeight.Bold)
             }
         }
+        item {
+            var manual by remember { mutableStateOf(false) }
+            if (manual) ManualDialog { manual = false }
+            OutlinedButton(onClick = { manual = true }, modifier = Modifier.fillMaxWidth()) { Text("📖 System manual: how everything works") }
+        }
         item { ProfileCard(state) }
         item { ModeCard(state) }
         item { ScheduleCard(state) }

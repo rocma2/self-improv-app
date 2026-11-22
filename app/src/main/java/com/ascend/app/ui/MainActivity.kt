@@ -57,6 +57,9 @@ import com.ascend.app.domain.Leveling
 import com.ascend.app.domain.Skill
 import java.time.YearMonth
 
+/** Bump when the manual gets new systems, so it shows once more. */
+const val MANUAL_VERSION = 1
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -108,9 +111,22 @@ fun AscendApp() {
     var rankUp by remember { mutableStateOf<String?>(null) }
     var showRecap by remember { mutableStateOf<YearMonth?>(null) }
     val snackbar = remember { SnackbarHostState() }
+    var burst by remember { mutableStateOf(0) }
+    var bursting by remember { mutableStateOf(false) }
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    fun celebrate(big: Boolean) {
+        haptic.performHapticFeedback(if (big) androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress else androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+        if (big) { burst++; bursting = true }
+    }
 
     LaunchedEffect(Unit) {
         Repository.events.collect { e ->
+            when (e) {
+                is GameEvent.QuestDone, is GameEvent.SkillLevelUp -> celebrate(false)
+                is GameEvent.LevelUp, is GameEvent.RankUp, is GameEvent.NewRecord, is GameEvent.BadgeEarned -> celebrate(true)
+                is GameEvent.Message -> if ("cleared" in e.text || "complete" in e.text || "DEFEATED" in e.text) celebrate(true)
+                else -> {}
+            }
             when (e) {
                 is GameEvent.LevelUp -> levelUp = e
                 is GameEvent.SkillLevelUp -> snackbar.showSnackbar("${e.skill.emoji} ${e.skill.label} reached level ${e.level}!", duration = SnackbarDuration.Short)
@@ -153,6 +169,10 @@ fun AscendApp() {
     }
 
     sheet?.let { LogSheet(state, it, onDismiss = { sheet = null }) }
+
+    if (bursting) ShardBurst(burst) { bursting = false }
+
+    if (state.seenManual < MANUAL_VERSION) ManualDialog { Repository.edit { it.copy(seenManual = MANUAL_VERSION) } }
 
     rankUp?.let { r -> RankUpDialog(r) { rankUp = null } }
     if (rankUp == null) levelUp?.let { lv -> LevelUpDialog(lv) { levelUp = null } }

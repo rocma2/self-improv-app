@@ -44,6 +44,18 @@
             </intent-filter>
         </receiver>
 
+        <!-- Home screen widget: today's quests at a glance. -->
+        <receiver
+            android:name=".focus.QuestWidget"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info" />
+        </receiver>
+
         <!-- Watches which app is on screen so TikTok/YouTube can be locked. -->
         <service
             android:name=".focus.BlockerService"

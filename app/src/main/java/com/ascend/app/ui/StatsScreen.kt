@@ -56,6 +56,7 @@ fun StatsScreen(state: AppState) {
     open?.let { sk -> SkillDialog(state, sk) { open = null } }
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item { SkillsRadarCard(state) { open = it } }
+        item { FuelCard(state, today) }
 
         item { SectionTitle("PROGRESS THAT DOESN'T PLATEAU") }
         item {
@@ -223,4 +224,29 @@ fun RecapDialog(state: AppState, month: YearMonth, onDismiss: () -> Unit) {
         text = { RecapBody(state, month) },
         containerColor = C.surface2,
     )
+}
+
+/** Daily food target for the weight goal, adjusted from real weigh-ins. */
+@Composable
+private fun FuelCard(state: AppState, today: java.time.LocalDate) {
+    val f = com.ascend.app.domain.Nutrition.target(state, today)
+    AppCard(title = "Fuel plan", border = C.green) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("${f.kcal}", style = androidx.compose.ui.text.TextStyle(fontFamily = Display, fontSize = 26.sp, color = C.text, shadow = glow(C.green, 14f)))
+                Text("kcal a day", fontSize = 12.sp, color = C.muted)
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("${f.proteinG} g", style = androidx.compose.ui.text.TextStyle(fontFamily = Display, fontSize = 26.sp, color = C.text, shadow = glow(C.green, 14f)))
+                Text("protein", fontSize = 12.sp, color = C.muted)
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(f.note, fontSize = 13.sp, color = C.green)
+        Spacer(Modifier.height(4.dp))
+        val day = today.dayOfYear
+        listOf(day, day + 2).map { com.ascend.app.domain.Nutrition.IDEAS[it % com.ascend.app.domain.Nutrition.IDEAS.size] }
+            .forEach { Text("• $it", fontSize = 13.sp, color = C.muted) }
+        Text("A rough guide for gaining weight while you run, not medical advice.", fontSize = 11.sp, color = C.muted, modifier = Modifier.padding(top = 4.dp))
+    }
 }

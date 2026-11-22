@@ -207,4 +207,15 @@ class RpgTest {
         assertEquals(g + Training.TIERS[2].gold, s.gold)
         assertEquals(s, Training.claim(s, start, 2, e))
     }
+
+    @Test
+    fun fuelTargetAdjustsToWeighIns() {
+        val base = fresh()
+        val f0 = Nutrition.target(base, start)
+        assertTrue(f0.kcal in 2_500..3_500 && f0.proteinG in 100..140)
+        val slow = base.copy(weighIns = listOf(WeighIn(start.minusDays(21).toString(), 66.0), WeighIn(start.toString(), 66.1)))
+        assertTrue(Nutrition.target(slow, start).kcal > f0.kcal)
+        val fast = base.copy(weighIns = listOf(WeighIn(start.minusDays(14).toString(), 66.0), WeighIn(start.toString(), 68.0)))
+        assertTrue(Nutrition.target(fast, start).kcal < Nutrition.target(slow, start).kcal)
+    }
 }

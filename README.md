@@ -48,6 +48,9 @@ In the app, open the **Focus** tab and follow the steps:
   - Gold, mystery boxes, a shop (freeze crystals, elixirs, rest scrolls, shields, XP potions) and your own real-life rewards bought with gold.
   - Skip pass: turn one run or gym session into a rest day. 400 gold, doubling for each skip in the last 4 weeks, max 1 a week, and that day gives no daily-quest reward.
   - Dungeon: a no-phone focus timer for studying, reading or money work, with a clear bonus.
+- Home screen widget: rank, quests done, the next quest and time to midnight, without opening the app.
+- Fuel plan: daily kcal and protein for the weight goal, adjusted from your weigh-ins.
+- Haptics and a shard burst on level-ups, records and clears. System manual in Settings.
 - All data stays on the phone. Export/import a JSON backup in Settings.
 
 ## Build it yourself

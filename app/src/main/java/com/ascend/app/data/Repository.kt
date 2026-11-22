@@ -85,6 +85,7 @@ object Repository {
             if (!tmp.renameTo(file)) { file.writeText(text); tmp.delete() }
         }
         LockPrefs.write(appContext, s, today())
+        com.ascend.app.focus.QuestWidget.updateAll(appContext, s)
     }
 
     fun exportJson(): String = Json { prettyPrint = true; encodeDefaults = true }.encodeToString(AppState.serializer(), _state.value)
