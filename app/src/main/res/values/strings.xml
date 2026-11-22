@@ -3,5 +3,5 @@
     <string name="app_name">Ascend</string>
     <string name="blocker_label">Ascend app lock</string>
     <string name="blocker_description">Ascend uses this only to see which app is open, so it can lock TikTok and YouTube when you owe a penalty quest or your daily budget is used up. It does not read what is on your screen.</string>
-    <string name="widget_description">Today's quests and what's next, without opening the app.</string>
+    <string name="widget_description">Quests for today and the next one, without opening the app.</string>
 </resources>
