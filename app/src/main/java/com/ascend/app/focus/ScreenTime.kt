@@ -97,6 +97,7 @@ object LockPrefs {
         val budgetMin: Int,
         val packages: Set<String>,
         val day: String,
+        val screenEnabled: Boolean,
     )
 
     fun write(context: Context, s: AppState, today: LocalDate) {
@@ -108,6 +109,7 @@ object LockPrefs {
             .putInt("budgetMin", QuestEngine.screenBudget(s, today))
             .putStringSet("packages", s.screen.packages.toSet())
             .putString("day", today.iso())
+            .putBoolean("screenEnabled", s.screen.enabled)
             .apply()
     }
 
@@ -120,6 +122,7 @@ object LockPrefs {
             budgetMin = p.getInt("budgetMin", Int.MAX_VALUE),
             packages = p.getStringSet("packages", null) ?: emptySet(),
             day = p.getString("day", "") ?: "",
+            screenEnabled = p.getBoolean("screenEnabled", false),
         )
     }
 }

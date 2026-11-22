@@ -1,6 +1,9 @@
 package com.ascend.app.ui
 
+import android.Manifest
+import android.os.Build
 import android.os.Bundle
+import com.ascend.app.focus.Reminders
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -43,6 +46,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         Repository.init(this)
+        Reminders.createChannel(this)
+        Reminders.scheduleAll(this)
+        if (!Reminders.canNotify(this) && Build.VERSION.SDK_INT >= 33) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
+        }
         setContent { AscendTheme { AscendApp() } }
     }
 

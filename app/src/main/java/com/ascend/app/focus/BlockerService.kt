@@ -49,9 +49,11 @@ class BlockerService : AccessibilityService() {
         // A new day may have started since the app was last opened: judge it first.
         if (LockPrefs.read(this).day != LocalDate.now().toString()) runCatching { Repository.refresh() }
         val lock = LockPrefs.read(this)
+        val used = ScreenTime.minutesOn(this, lock.packages.toList(), LocalDate.now()) ?: 0
+        if (lock.screenEnabled) Reminders.maybeWarnBudget(this, used, lock.budgetMin)
         val reason = when {
             lock.penaltyLock -> BlockActivity.REASON_PENALTY
-            lock.budgetLock && (ScreenTime.minutesOn(this, lock.packages.toList(), LocalDate.now()) ?: 0) >= lock.budgetMin -> BlockActivity.REASON_BUDGET
+            lock.budgetLock && used >= lock.budgetMin -> BlockActivity.REASON_BUDGET
             else -> null
         } ?: return
         performGlobalAction(GLOBAL_ACTION_HOME)
