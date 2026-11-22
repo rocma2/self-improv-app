@@ -215,6 +215,7 @@ data class AppState(
     val skipDays: List<String> = emptyList(),
     val xpBoostDay: String? = null,
     val checkIns: List<String> = emptyList(),
+    val tpClaims: List<String> = emptyList(),
 ) {
     fun skill(s: Skill): SkillState = skills[s] ?: SkillState()
     val mode: Difficulty get() = profile.difficulty

@@ -191,4 +191,20 @@ class RpgTest {
         val hidden = (0 until 300).count { Rpg.hiddenQuestDay(start.plusDays(it.toLong())) }
         assertTrue(hidden in 60..140)
     }
+
+    @Test
+    fun trainingPointsTrackStopsAtPlan() {
+        var s = fresh()
+        val ws = start.weekStart()
+        val target = Training.weekTarget(s, ws, start)
+        assertTrue(target > 0)
+        val e = mutableListOf<GameEvent>()
+        assertEquals(s, Training.claim(s, start, 0, e))
+        s = Game.logRun(s, start, start, 30.0, 0, RunType.EASY, Surface.OUTDOOR, null).state
+        assertTrue(Training.weekTp(s, ws) >= target)
+        val g = s.gold
+        s = Training.claim(s, start, 2, e)
+        assertEquals(g + Training.TIERS[2].gold, s.gold)
+        assertEquals(s, Training.claim(s, start, 2, e))
+    }
 }

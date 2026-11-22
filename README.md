@@ -34,6 +34,7 @@ In the app, open the **Focus** tab and follow the steps:
   weekly chest lost after too many misses. Food and sleep are never punishments. Rest days and deload weeks never count as misses.
 - Momentum streak that never resets to zero (freezes + keep 75%).
 - Auto personal records, 30 badges from real life, 6-week seasons of fresh goals, monthly recap, "you vs 3 months ago".
+- Train tab: today's session as a ranked mission with one START button, Training Points (TP) for every run, gym session and bike ride with 3 weekly chests that stop at 100% of the plan, the week as a tappable path, personal-best chips and an activity log.
 - Charts: weekly km, pace, body weight, strength.
 - Ranks E to S grow exponentially: each rank needs 3x the total XP of the last (D 2,500 · C 7,500 · B 22,500 · A 67,500 · S 202,500). Rank up gives +5 stat points and 500 gold.
 - Skills radar: an octagon of your 8 skills. Tap one to see its own pentagon of 5 sub-stats from your real logs (for running: endurance, speed, volume, discipline, health) and the one to improve next.
