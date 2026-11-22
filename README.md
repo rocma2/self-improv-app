@@ -35,6 +35,13 @@ In the app, open the **Focus** tab and follow the steps:
 - Momentum streak that never resets to zero (freezes + keep 75%).
 - Auto personal records, 30 badges from real life, 6-week seasons of fresh goals, monthly recap, "you vs 3 months ago".
 - Charts: weekly km, pace, body weight, strength.
+- RPG layer (Gates tab):
+  - Stat points: +3 per level and +1 for each fully completed daily quest. Spend them on STR, AGI, VIT, INT, WIL.
+  - Gates: 3 a week built from your plan. Enter one, hit the target before Sunday. The red gate pays double but costs HP if it collapses. Running and gym gates never ask for more than the plan.
+  - Bosses are your big goals: 5 km under 19:00, half marathon, marathon (sealed until the half), 72 kg, squat 1.25x bodyweight, screen time.
+  - Job change at level 10: pass a 7-day trial, pick Striker, Vanguard, Sage or Warden (+15% XP on 2 skills).
+  - Gold, mystery boxes, a shop (freeze crystals, elixirs, rest scrolls) and your own real-life rewards bought with gold.
+  - Dungeon: a no-phone focus timer for studying, reading or money work, with a clear bonus.
 - All data stays on the phone. Export/import a JSON backup in Settings.
 
 ## Build it yourself

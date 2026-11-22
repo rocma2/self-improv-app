@@ -27,6 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -147,6 +148,8 @@ private fun Countdown() {
 
 @Composable
 private fun StatusWindow(state: AppState, onSettings: () -> Unit) {
+    var allocating by remember { mutableStateOf(false) }
+    if (allocating) AllocateDialog(state) { allocating = false }
     val info = Leveling.info(state.totalXp)
     val rank = Leveling.rank(info.level)
     val hp = state.skills.values.map { it.hp }.average().takeIf { !it.isNaN() } ?: 100.0
@@ -166,7 +169,7 @@ private fun StatusWindow(state: AppState, onSettings: () -> Unit) {
         LabeledBar("HP", "${hp.roundToInt()} / 100", (hp / 100).toFloat(), C.hp)
         Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Leveling.attributes(state).forEach { (name, v) ->
+            com.ascend.app.domain.Rpg.attributes(state).forEach { (name, v) ->
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(name, fontSize = 12.sp, color = C.muted, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                     Text("$v", style = TextStyle(fontFamily = Display, fontSize = 20.sp, color = C.text, shadow = glow(C.blue, 12f)))
@@ -178,6 +181,16 @@ private fun StatusWindow(state: AppState, onSettings: () -> Unit) {
             Pill(state.mode.label, if (state.mode.appLock) C.hp else C.blue)
             Pill("🔥 ${state.momentum.streak}", C.gold)
             Pill("❄ ${state.momentum.freezes}", C.cyan)
+            Pill("🪙 ${state.gold}", C.gold)
+        }
+        if (state.statPoints > 0) {
+            Spacer(Modifier.height(8.dp))
+            Button(onClick = { allocating = true }, modifier = Modifier.fillMaxWidth(), shape = CutCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = C.gold.copy(alpha = 0.85f))) {
+                Text("${state.statPoints} STAT POINT(S) TO SPEND", color = C.bg)
+            }
+        } else if (state.allocated.isNotEmpty()) {
+            TextButton(onClick = { allocating = true }) { Text("View stats", color = C.muted, fontSize = 12.sp) }
         }
         Leveling.nextRank(info.level)?.let { (lvl, r) ->
             Text("Rank $r at level $lvl", fontSize = 12.sp, color = C.muted, modifier = Modifier.padding(top = 6.dp))

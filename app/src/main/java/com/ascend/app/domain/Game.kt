@@ -25,7 +25,7 @@ object Game {
     // ---------- XP and HP ----------
 
     fun grantXp(state: AppState, skill: Skill, baseXp: Int, date: LocalDate, events: MutableList<GameEvent>, multiply: Boolean = true): AppState {
-        val xp = if (multiply) (baseXp * xpMultiplier(state, date)).roundToInt() else baseXp
+        val xp = if (multiply) (baseXp * xpMultiplier(state, date) * Rpg.jobMultiplier(state, skill)).roundToInt() else baseXp
         if (xp <= 0) return state
         val sk = state.skill(skill)
         val oldSkillLevel = Leveling.skillLevel(sk.xp)
@@ -38,6 +38,8 @@ object Game {
         if (newLevel > oldLevel) events += GameEvent.LevelUp(newLevel, Leveling.title(newLevel))
         val key = date.iso()
         return state.copy(
+            gold = state.gold + (xp / 4).coerceAtLeast(1),
+            statPoints = state.statPoints + Rpg.POINTS_PER_LEVEL * (newLevel - oldLevel),
             skills = state.skills + (skill to newSk),
             totalXp = total,
             dailyXp = state.dailyXp + (key to ((state.dailyXp[key] ?: 0) + xp)),
@@ -202,6 +204,11 @@ object Game {
             s = grantXp(s, skill, RECORD_XP, today, events)
         }
         s = syncToday(s, today, events)
+        s = Rpg.dailyReward(s, today, events)
+        s = Rpg.ensureGates(s, today)
+        s = Rpg.settleGates(s, today, events)
+        s = Rpg.settleBosses(s, today, events)
+        s = Rpg.keepTrialFair(s)
         s = Seasons.ensure(s, today)
         s = Seasons.claim(s, today, events)
         for (b in Badges.all) {
@@ -221,6 +228,13 @@ object Game {
     }
 
     // ---------- Actions ----------
+
+    /** Any RPG action (items, gates, shop) that may emit events, followed by the usual checks. */
+    fun act(state: AppState, today: LocalDate, change: (AppState, MutableList<GameEvent>) -> AppState): Result {
+        val events = mutableListOf<GameEvent>()
+        val s = finish(state, change(state, events), today, events)
+        return Result(s, events)
+    }
 
     fun completeOnboarding(state: AppState, profile: Profile, today: LocalDate): AppState =
         state.copy(

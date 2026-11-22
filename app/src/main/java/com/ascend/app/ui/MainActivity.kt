@@ -63,7 +63,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-enum class Tab(val label: String, val emoji: String) { TODAY("Today", "⚔️"), TRAIN("Train", "🏃"), STATS("Stats", "📊"), FOCUS("Focus", "📵") }
+enum class Tab(val label: String, val emoji: String) { TODAY("Today", "⚔️"), TRAIN("Train", "🏃"), GATES("Gates", "🌀"), STATS("Stats", "📊"), FOCUS("Focus", "📵") }
 
 /** Which quick-log sheet is open. */
 sealed class LogTarget {
@@ -114,7 +114,7 @@ fun AscendApp() {
     BackHandler(enabled = settings) { settings = false }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbar) },
+        snackbarHost = { SnackbarHost(snackbar) { data -> SystemSnackbar(data.visuals.message) } },
         bottomBar = {
             if (!settings) NavigationBar(containerColor = C.panelBottom) {
                 Tab.entries.forEach { t ->
@@ -135,6 +135,7 @@ fun AscendApp() {
             else when (tab) {
                 Tab.TODAY -> TodayScreen(state, onLog = { sheet = it }, onSettings = { settings = true }, onFocus = { tab = Tab.FOCUS })
                 Tab.TRAIN -> TrainScreen(state, onLog = { sheet = it })
+                Tab.GATES -> GatesScreen(state)
                 Tab.STATS -> StatsScreen(state)
                 Tab.FOCUS -> FocusScreen(state)
             }
@@ -172,6 +173,16 @@ private fun LevelUpDialog(lv: GameEvent.LevelUp, onDismiss: () -> Unit) {
                     androidx.compose.material3.Button(onClick = onDismiss, shape = androidx.compose.foundation.shape.CutCornerShape(8.dp)) { Text("ACCEPT") }
                 }
             }
+        }
+    }
+}
+
+/** System-window style toast for every in-game message. */
+@Composable
+private fun SystemSnackbar(message: String) {
+    Box(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+        AppCard(border = if (message.contains("💔") || message.contains("collapsed")) C.hp else C.cyan) {
+            Text(message.removePrefix("[SYSTEM] "), fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = C.text)
         }
     }
 }

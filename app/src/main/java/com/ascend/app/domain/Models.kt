@@ -200,6 +200,18 @@ data class AppState(
     val lastEvaluated: String? = null,
     val nextId: Long = 1,
     val lastRecapMonth: String? = null,
+    // RPG layer
+    val gold: Int = 0,
+    val statPoints: Int = 0,
+    val allocated: Map<String, Int> = emptyMap(),
+    val inventory: Map<Item, Int> = mapOf(Item.MYSTERY_BOX to 1),
+    val gates: List<Gate> = emptyList(),
+    val job: JobClass? = null,
+    val jobTrialStart: String? = null,
+    val jobTrialBase: Int = 0,
+    val dailyRewardDays: List<String> = emptyList(),
+    val customRewards: List<CustomReward> = emptyList(),
+    val defeatedBosses: List<String> = emptyList(),
 ) {
     fun skill(s: Skill): SkillState = skills[s] ?: SkillState()
     val mode: Difficulty get() = profile.difficulty
