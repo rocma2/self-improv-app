@@ -11,6 +11,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.NavigationBar
@@ -31,6 +32,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
@@ -113,14 +116,14 @@ fun AscendApp() {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
-            if (!settings) NavigationBar(containerColor = C.surface) {
+            if (!settings) NavigationBar(containerColor = C.panelBottom) {
                 Tab.entries.forEach { t ->
                     NavigationBarItem(
                         selected = tab == t,
                         onClick = { tab = t },
                         icon = { Text(t.emoji, fontSize = 20.sp) },
                         label = { Text(t.label) },
-                        colors = NavigationBarItemDefaults.colors(indicatorColor = C.violet.copy(alpha = 0.3f), selectedTextColor = C.text, unselectedTextColor = C.muted),
+                        colors = NavigationBarItemDefaults.colors(indicatorColor = C.blue.copy(alpha = 0.3f), selectedTextColor = C.text, unselectedTextColor = C.muted),
                     )
                 }
             }
@@ -140,26 +143,35 @@ fun AscendApp() {
 
     sheet?.let { LogSheet(state, it, onDismiss = { sheet = null }) }
 
-    levelUp?.let { lv ->
-        AlertDialog(
-            onDismissRequest = { levelUp = null },
-            confirmButton = { TextButton(onClick = { levelUp = null }) { Text("Keep going") } },
-            title = { Text("⬆ LEVEL UP", color = C.gold, fontWeight = FontWeight.Black, fontSize = 28.sp) },
-            text = {
-                val next = Leveling.nextTitle(lv.level)
-                Text(
-                    "You are now level ${lv.level}: ${lv.title}." + (next?.let { "\nNext title at level ${it.first}: ${it.second}." } ?: ""),
-                    textAlign = TextAlign.Center,
-                )
-            },
-            containerColor = C.surface2,
-        )
-    }
+    levelUp?.let { lv -> LevelUpDialog(lv) { levelUp = null } }
 
     showRecap?.let { month ->
         RecapDialog(state, month, onDismiss = {
             showRecap = null
             Repository.edit { it.copy(lastRecapMonth = YearMonth.now().toString()) }
         })
+    }
+}
+
+@Composable
+private fun LevelUpDialog(lv: GameEvent.LevelUp, onDismiss: () -> Unit) {
+    val scale = remember { androidx.compose.animation.core.Animatable(0.6f) }
+    LaunchedEffect(Unit) { scale.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.45f, stiffness = 300f)) }
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Box(Modifier.graphicsLayer { scaleX = scale.value; scaleY = scale.value }) {
+            AppCard(title = "Notification", pulse = true) {
+                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                    SysText("Level up!", size = 30.sp, color = C.text, glowColor = C.cyan)
+                    androidx.compose.foundation.layout.Spacer(Modifier.padding(6.dp))
+                    RankEmblem(Leveling.rank(lv.level), C.blue, 84.dp)
+                    androidx.compose.foundation.layout.Spacer(Modifier.padding(6.dp))
+                    Text("You reached level ${lv.level}", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text("Title: ${lv.title}", color = C.muted)
+                    Leveling.nextTitle(lv.level)?.let { Text("Next title at level ${it.first}: ${it.second}", color = C.muted, fontSize = 13.sp) }
+                    androidx.compose.foundation.layout.Spacer(Modifier.padding(8.dp))
+                    androidx.compose.material3.Button(onClick = onDismiss, shape = androidx.compose.foundation.shape.CutCornerShape(8.dp)) { Text("ACCEPT") }
+                }
+            }
+        }
     }
 }

@@ -41,16 +41,35 @@ fun OnboardingScreen() {
     var target by remember { mutableStateOf("72") }
     var km by remember { mutableStateOf("8") }
     var mode by remember { mutableStateOf(Difficulty.NEW_LIFE) }
+    var accepted by remember { mutableStateOf(false) }
     fun String.num() = replace(',', '.').trim().toDoubleOrNull()
+
+    if (!accepted) {
+        Column(
+            Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            AppCard(title = "Notification", pulse = true) {
+                Text(
+                    "A new path has opened for you.\n\nEvery run, every rep, every page and every hour you take back from your phone will make you stronger.\n\nDo you accept?",
+                    fontSize = 18.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(16.dp))
+                Button(onClick = { accepted = true }, modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = androidx.compose.foundation.shape.CutCornerShape(8.dp)) { Text("ACCEPT", fontSize = 16.sp) }
+            }
+        }
+        return
+    }
 
     Column(
         Modifier.fillMaxSize().safeDrawingPadding().imePadding().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("ASCEND", fontSize = 34.sp, fontWeight = FontWeight.Black, color = C.violet)
+        SysText("Ascend", size = 34.sp)
         Text("Your life is the game. Real runs, real lifts, real hours won back from your phone, all turned into XP.", color = C.muted)
-        AppCard {
-            Text("How it works", fontWeight = FontWeight.Bold)
+        AppCard(title = "How it works") {
             Text(
                 "• Daily quests for running, gym, sleep, eating, reading, studying and money.\n" +
                     "• Log anything in under 30 seconds. Quests complete themselves.\n" +

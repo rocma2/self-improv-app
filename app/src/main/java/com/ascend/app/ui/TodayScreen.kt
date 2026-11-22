@@ -1,6 +1,5 @@
 package com.ascend.app.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -12,27 +11,33 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ascend.app.data.Repository
@@ -46,6 +51,9 @@ import com.ascend.app.domain.QuestStatus
 import com.ascend.app.domain.Skill
 import com.ascend.app.domain.TrainingPlan
 import com.ascend.app.domain.weekStart
+import kotlinx.coroutines.delay
+import java.time.Duration
+import java.time.LocalDateTime
 import kotlin.math.roundToInt
 
 @Composable
@@ -55,80 +63,124 @@ fun TodayScreen(state: AppState, onLog: (LogTarget) -> Unit, onSettings: () -> U
     val penalties = QuestEngine.pendingPenalties(state, today)
     val doneCount = quests.count { QuestEngine.record(state, it)?.status == QuestStatus.DONE }
 
-    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        item { HeaderCard(state, onSettings) }
+    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        item { StatusWindow(state, onSettings) }
 
         if (TrainingPlan.isWinter(state, today)) item {
-            AppCard(border = C.cyan.copy(alpha = 0.5f)) {
-                Text("❄️ Winter arc is on", fontWeight = FontWeight.Bold, color = C.cyan)
-                Text("All XP x1.2 until March. Treadmill and indoor bike count for runs. Showing up is the whole game right now.", fontSize = 13.sp, color = C.muted)
+            AppCard(border = C.cyan, title = "Winter arc") {
+                Text("All XP ×1.2 until March. Treadmill and indoor bike count for runs. Showing up is the whole game right now.", fontSize = 14.sp, color = C.muted)
             }
         }
 
         if (penalties.isNotEmpty()) {
-            item { SectionTitle("PENALTY QUESTS") }
             items(penalties, key = { "p${it.id}" }) { p ->
-                AppCard(border = C.hp) {
-                    Text("⚠️ ${p.title}", fontWeight = FontWeight.Bold, color = C.hp)
-                    Text(p.detail, fontSize = 13.sp, color = C.muted)
-                    if (state.mode.appLock) Text("🔒 TikTok and YouTube stay locked until this is done.", fontSize = 12.sp, color = C.hp, modifier = Modifier.padding(top = 4.dp))
-                    Spacer(Modifier.height(8.dp))
-                    Button(onClick = { Repository.update { Game.completePenalty(it, today, p.id) } },
-                        colors = ButtonDefaults.buttonColors(containerColor = C.hp)) { Text("I did it") }
+                AppCard(border = C.hp, title = "Penalty quest", pulse = true) {
+                    SysText(p.title.removePrefix("Penalty: "), size = 18.sp, glowColor = C.hp, align = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                    Spacer(Modifier.height(6.dp))
+                    Text(p.detail, fontSize = 14.sp, color = C.muted, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                    if (state.mode.appLock) Text("TikTok and YouTube are locked until this is cleared.", fontSize = 13.sp, color = C.hp,
+                        textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
+                    Spacer(Modifier.height(10.dp))
+                    Button(onClick = { Repository.update { Game.completePenalty(it, today, p.id) } }, shape = CutCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = C.hp), modifier = Modifier.fillMaxWidth()) { Text("CLEARED") }
                 }
+            }
+        }
+
+        item {
+            AppCard(title = "Daily quest") {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Today's trial", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = C.cyan, modifier = Modifier.weight(1f))
+                    Text("$doneCount / ${quests.size}", fontWeight = FontWeight.Bold, color = if (doneCount == quests.size) C.green else C.text)
+                }
+                Spacer(Modifier.height(6.dp))
+                HorizontalDivider(color = C.blue.copy(alpha = 0.3f))
+                quests.forEach { q -> QuestRow(state, q, onLog, onFocus) }
+                HorizontalDivider(color = C.blue.copy(alpha = 0.3f))
+                Spacer(Modifier.height(8.dp))
+                if (today.toString() in state.restDays) {
+                    Text("Recovery day. Nothing today counts as a miss.", color = C.green, fontSize = 13.sp)
+                } else if (state.mode.hpLoss > 0 && doneCount < quests.size) {
+                    Text(
+                        "WARNING: quests not done by midnight cost ${state.mode.hpLoss} HP each" + if (state.mode.penaltyQuest) " and trigger a penalty quest." else ".",
+                        color = C.hp, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                Countdown()
             }
         }
 
         item { QuickLog(onLog, onFood = { Repository.update { Game.logFood(it, today, today) } }) }
 
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                SectionTitle("TODAY'S QUESTS")
-                Spacer(Modifier.weight(1f))
-                Text("$doneCount / ${quests.size}", color = C.muted, fontSize = 13.sp)
-            }
-        }
-        items(quests, key = { it.id }) { q -> QuestCard(state, q, onLog, onFocus) }
-
         item { WeeklyChest(state) }
 
         item {
-            val rest = today.toString() in state.restDays
-            when {
-                rest -> Text("😌 Recovery day. Nothing today counts as a miss. Do what you can.", color = C.green, fontSize = 13.sp)
-                Game.canTakeRestDay(state, today) -> OutlinedButton(onClick = { Repository.edit { Game.takeRestDay(it, today) } }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Sick or wrecked? Take this week's recovery day")
-                }
-                else -> Text("Recovery day already used this week.", color = C.muted, fontSize = 12.sp)
+            if (today.toString() !in state.restDays) {
+                if (Game.canTakeRestDay(state, today)) {
+                    OutlinedButton(onClick = { Repository.edit { Game.takeRestDay(it, today) } }, modifier = Modifier.fillMaxWidth(), shape = CutCornerShape(8.dp)) {
+                        Text("Sick or wrecked? Use this week's recovery day")
+                    }
+                } else Text("Recovery day already used this week.", color = C.muted, fontSize = 12.sp)
             }
         }
     }
 }
 
 @Composable
-private fun HeaderCard(state: AppState, onSettings: () -> Unit) {
+private fun Countdown() {
+    var left by remember { mutableStateOf(Duration.ZERO) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            val now = LocalDateTime.now()
+            left = Duration.between(now, now.toLocalDate().plusDays(1).atStartOfDay())
+            delay(1000)
+        }
+    }
+    val s = left.seconds
+    Text(
+        "⏱ %02d:%02d:%02d".format(s / 3600, (s % 3600) / 60, s % 60),
+        modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+        textAlign = TextAlign.Center,
+        style = TextStyle(fontFamily = Display, fontSize = 16.sp, color = C.text, letterSpacing = 2.sp, shadow = glow(C.blue, 10f)),
+    )
+}
+
+@Composable
+private fun StatusWindow(state: AppState, onSettings: () -> Unit) {
     val info = Leveling.info(state.totalXp)
+    val rank = Leveling.rank(info.level)
     val hp = state.skills.values.map { it.hp }.average().takeIf { !it.isNaN() } ?: 100.0
-    AppCard {
+    AppCard(title = "Status") {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(52.dp).clip(CircleShape).background(C.violet), contentAlignment = Alignment.Center) {
-                Text("${info.level}", fontSize = 22.sp, fontWeight = FontWeight.Black, color = androidx.compose.ui.graphics.Color.White)
-            }
-            Spacer(Modifier.width(12.dp))
+            RankEmblem(rank, C.blue, 68.dp)
+            Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text(state.profile.name, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                Text("Level ${info.level} · ${Leveling.title(info.level)}", color = C.muted, fontSize = 13.sp)
+                SysText("Level ${info.level}", size = 24.sp)
+                Text(state.profile.name, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                Text("Title: ${Leveling.title(info.level)}  ·  Rank $rank", color = C.muted, fontSize = 13.sp)
             }
             IconButton(onClick = onSettings) { Icon(Icons.Default.Settings, contentDescription = "Settings", tint = C.muted) }
         }
-        Spacer(Modifier.height(10.dp))
-        LabeledBar("XP", "${info.intoLevel} / ${info.levelSize}", info.fraction, C.gold)
+        Spacer(Modifier.height(12.dp))
+        LabeledBar("XP", "${info.intoLevel} / ${info.levelSize}", info.fraction, C.cyan)
         LabeledBar("HP", "${hp.roundToInt()} / 100", (hp / 100).toFloat(), C.hp)
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Leveling.attributes(state).forEach { (name, v) ->
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(name, fontSize = 12.sp, color = C.muted, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Text("$v", style = TextStyle(fontFamily = Display, fontSize = 20.sp, color = C.text, shadow = glow(C.blue, 12f)))
+                }
+            }
+        }
+        Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Pill(state.mode.label, if (state.mode.appLock) C.hp else C.violet)
+            Pill(state.mode.label, if (state.mode.appLock) C.hp else C.blue)
             Pill("🔥 ${state.momentum.streak}", C.gold)
-            Pill("❄️ ${state.momentum.freezes} freeze" + if (state.momentum.freezes == 1) "" else "s", C.cyan)
+            Pill("❄ ${state.momentum.freezes}", C.cyan)
+        }
+        Leveling.nextRank(info.level)?.let { (lvl, r) ->
+            Text("Rank $r at level $lvl", fontSize = 12.sp, color = C.muted, modifier = Modifier.padding(top = 6.dp))
         }
     }
 }
@@ -136,10 +188,11 @@ private fun HeaderCard(state: AppState, onSettings: () -> Unit) {
 @Composable
 private fun QuickLog(onLog: (LogTarget) -> Unit, onFood: () -> Unit) {
     Column {
-        SectionTitle("QUICK LOG")
+        SectionTitle("Quick log")
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             val chip: @Composable (String, () -> Unit) -> Unit = { label, action ->
-                AssistChip(onClick = action, label = { Text(label) }, colors = AssistChipDefaults.assistChipColors(containerColor = C.surface2, labelColor = C.text))
+                AssistChip(onClick = action, label = { Text(label, fontWeight = FontWeight.Bold) }, shape = CutCornerShape(6.dp),
+                    colors = AssistChipDefaults.assistChipColors(containerColor = C.surface2, labelColor = C.text))
             }
             chip("🏃 Run") { onLog(LogTarget.Run()) }
             chip("🏋️ Gym") { onLog(LogTarget.Gym) }
@@ -154,12 +207,22 @@ private fun QuickLog(onLog: (LogTarget) -> Unit, onFood: () -> Unit) {
     }
 }
 
+private fun counter(q: Quest, progress: Double): String {
+    val v = (progress * q.target).coerceAtMost(q.target)
+    return when (q.kind) {
+        QuestKind.RUN -> "[%.1f/%.1f km]".format(v, q.target)
+        QuestKind.SLEEP -> "[%.1f/%.1f h]".format(v, q.target)
+        QuestKind.READ, QuestKind.STUDY, QuestKind.MONEY -> "[${v.roundToInt()}/${q.target.roundToInt()} min]"
+        QuestKind.SCREEN -> "[auto]"
+        else -> "[${v.roundToInt()}/1]"
+    }
+}
+
 @Composable
-private fun QuestCard(state: AppState, q: Quest, onLog: (LogTarget) -> Unit, onFocus: () -> Unit) {
+private fun QuestRow(state: AppState, q: Quest, onLog: (LogTarget) -> Unit, onFocus: () -> Unit) {
     val today = Repository.today()
-    val rec = QuestEngine.record(state, q)
-    val done = rec?.status == QuestStatus.DONE
-    val progress = QuestEngine.progress(state, q)
+    val done = QuestEngine.record(state, q)?.status == QuestStatus.DONE
+    val progress = if (done) 1.0 else QuestEngine.progress(state, q)
     val xp = (q.baseXp * Game.xpMultiplier(state, today)).roundToInt()
     val action: () -> Unit = {
         when (q.kind) {
@@ -174,23 +237,25 @@ private fun QuestCard(state: AppState, q: Quest, onLog: (LogTarget) -> Unit, onF
             QuestKind.SCREEN -> onFocus()
         }
     }
-    AppCard(modifier = Modifier.clickable(enabled = !done) { action() }, border = if (done) C.green.copy(alpha = 0.6f) else null) {
+    Column(Modifier.fillMaxWidth().clickable(enabled = !done) { action() }.padding(vertical = 9.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(q.skill.emoji, fontSize = 24.sp)
-            Spacer(Modifier.width(12.dp))
+            Box(Modifier.width(30.dp)) { Text(if (done) "✔" else q.skill.emoji, fontSize = 18.sp, color = C.green) }
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(q.title, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f, fill = false))
+                    Text(q.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = if (done) C.muted else C.text, modifier = Modifier.weight(1f, fill = false))
                     if (q.optional) { Spacer(Modifier.width(6.dp)); Pill("bonus", C.cyan) }
                 }
-                Text(q.detail, fontSize = 12.sp, color = C.muted, maxLines = 3)
+                Text(q.detail, fontSize = 12.sp, color = C.muted, maxLines = 2)
             }
             Spacer(Modifier.width(8.dp))
-            Text(if (done) "✓" else "+$xp", color = if (done) C.green else C.gold, fontWeight = FontWeight.Bold)
+            Column(horizontalAlignment = Alignment.End) {
+                Text(counter(q, progress), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (done) C.green else C.text)
+                Text("+$xp XP", fontSize = 12.sp, color = C.gold, fontWeight = FontWeight.Bold)
+            }
         }
-        if (!done && q.kind != QuestKind.SCREEN && progress > 0) {
-            Spacer(Modifier.height(8.dp))
-            Bar(progress.toFloat(), C.violet, height = 5)
+        if (!done && progress > 0 && q.kind != QuestKind.SCREEN) {
+            Spacer(Modifier.height(5.dp))
+            Bar(progress.toFloat(), C.blue, height = 4)
         }
     }
 }
@@ -201,13 +266,13 @@ private fun WeeklyChest(state: AppState) {
     val ws = today.weekStart()
     val misses = state.questRecords.count { it.status == QuestStatus.MISSED && it.date >= ws.toString() }
     val limit = state.mode.weeklyMissLimit
-    AppCard {
-        Text("🧰 Weekly chest: +${(Game.WEEKLY_CHEST_XP * Game.xpMultiplier(state, today)).roundToInt()} XP on Sunday night", fontWeight = FontWeight.SemiBold)
+    AppCard(title = "Weekly reward", border = if (limit < 99 && misses >= limit) C.hp else C.gold) {
+        Text("+${(Game.WEEKLY_CHEST_XP * Game.xpMultiplier(state, today)).roundToInt()} XP chest on Sunday night", fontWeight = FontWeight.Bold, color = C.gold)
         Text(
             if (limit >= 99) "Soft mode: the chest is always yours."
             else if (misses >= limit) "Lost this week ($misses misses). New chest on Monday."
             else "Misses this week: $misses. You lose it at $limit.",
-            fontSize = 13.sp, color = if (misses >= limit) C.hp else C.muted,
+            fontSize = 14.sp, color = if (limit < 99 && misses >= limit) C.hp else C.muted,
         )
     }
 }

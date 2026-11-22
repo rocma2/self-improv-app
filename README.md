@@ -43,3 +43,7 @@ GitHub Actions builds `Ascend.apk` on every push (see `.github/workflows/build.y
 Locally: `./gradlew assembleRelease` with the Android SDK installed.
 
 The rules of the game are plain Kotlin in `app/src/main/java/com/ascend/app/domain` with tests in `app/src/test`.
+
+## Fonts
+
+Rajdhani (Indian Type Foundry) and Orbitron (Matt McInerney), both under the SIL Open Font License 1.1, from Google Fonts.

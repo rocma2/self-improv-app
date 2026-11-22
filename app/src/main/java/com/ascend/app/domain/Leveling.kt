@@ -49,4 +49,30 @@ object Leveling {
     fun title(level: Int): String = titles.last { level >= it.first }.second
 
     fun nextTitle(level: Int): Pair<Int, String>? = titles.firstOrNull { it.first > level }
+
+    /** Letter rank shown in the status window. */
+    fun rank(level: Int): String = when {
+        level >= 70 -> "S"
+        level >= 50 -> "A"
+        level >= 35 -> "B"
+        level >= 20 -> "C"
+        level >= 10 -> "D"
+        else -> "E"
+    }
+
+    fun nextRank(level: Int): Pair<Int, String>? =
+        listOf(10 to "D", 20 to "C", 35 to "B", 50 to "A", 70 to "S").firstOrNull { it.first > level }
+
+    /** Five attributes built from your skill levels. */
+    fun attributes(state: AppState): List<Pair<String, Int>> {
+        fun lv(s: Skill) = skillLevel(state.skill(s).xp)
+        fun avg(a: Skill, b: Skill) = (lv(a) + lv(b) + 1) / 2
+        return listOf(
+            "STR" to lv(Skill.GYM),
+            "AGI" to lv(Skill.RUNNING),
+            "VIT" to avg(Skill.SLEEP, Skill.WEIGHT),
+            "INT" to avg(Skill.READING, Skill.STUDYING),
+            "WIL" to avg(Skill.FOCUS, Skill.MONEY),
+        )
+    }
 }
