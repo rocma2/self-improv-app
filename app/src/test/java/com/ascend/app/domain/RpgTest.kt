@@ -164,4 +164,31 @@ class RpgTest {
         assertEquals(Game.xpMultiplier(base, start) * 1.5, Game.xpMultiplier(boosted, start), 1e-9)
         assertEquals(Game.xpMultiplier(base, start.plusDays(1)), Game.xpMultiplier(boosted, start.plusDays(1)), 1e-9)
     }
+
+    @Test
+    fun radarHasFiveSubStatsPerSkillInRange() {
+        var s = fresh()
+        s = Game.logRun(s, start, start, 5.0, 25 * 60, RunType.EASY, Surface.OUTDOOR, null).state
+        for (sk in Skill.entries) {
+            val subs = SkillRadar.subStats(s, sk, start)
+            assertEquals(5, subs.size)
+            subs.forEach { assertTrue(it.score in 0..100) }
+        }
+        assertTrue(SkillRadar.subStats(s, Skill.RUNNING, start).first { it.name == "Speed" }.score > 0)
+        assertEquals(8, SkillRadar.overview(s).size)
+    }
+
+    @Test
+    fun checkInTrackGivesRewardsOncePerDay() {
+        var s = fresh()
+        val e = mutableListOf<GameEvent>()
+        s = Rpg.checkIn(s, start, e)
+        val g = s.gold
+        assertEquals(s, Rpg.checkIn(s, start, e))
+        for (i in 1..6) s = Rpg.checkIn(s, start.plusDays(i.toLong()), e)
+        assertEquals(0, Rpg.checkInIndex(s))
+        assertTrue(s.gold > g && (s.inventory[Item.SHIELD] ?: 0) == 1)
+        val hidden = (0 until 300).count { Rpg.hiddenQuestDay(start.plusDays(it.toLong())) }
+        assertTrue(hidden in 60..140)
+    }
 }

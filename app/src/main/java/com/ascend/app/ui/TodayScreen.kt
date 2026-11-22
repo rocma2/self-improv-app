@@ -67,6 +67,10 @@ fun TodayScreen(state: AppState, onLog: (LogTarget) -> Unit, onSettings: () -> U
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item { StatusWindow(state, onSettings) }
 
+        if (!com.ascend.app.domain.Rpg.checkedInToday(state, today)) item {
+            CheckInCard(state) { Repository.update { s -> Game.act(s, today) { st, ev -> com.ascend.app.domain.Rpg.checkIn(st, today, ev) } } }
+        }
+
         if (TrainingPlan.isWinter(state, today)) item {
             AppCard(border = C.cyan, title = "Winter arc") {
                 Text("All XP ×1.2 until March. Treadmill and indoor bike count for runs. Showing up is the whole game right now.", fontSize = 14.sp, color = C.muted)

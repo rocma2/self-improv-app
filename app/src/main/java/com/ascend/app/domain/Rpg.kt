@@ -184,6 +184,36 @@ object Rpg {
 
     fun nextUnlock(state: AppState): Feature? = Feature.entries.firstOrNull { !unlocked(state, it) }
 
+    // ---------- Daily check-in: a 7-day reward track ----------
+
+    /** Day 1-7 rewards. Missing a day never resets the track, it just waits for you. */
+    val CHECK_IN_REWARDS = listOf("20 🪙", "30 🪙", "🎁 Mystery box", "50 🪙", "⚗️ XP potion", "80 🪙", "🛡️ Shield + 🎁")
+
+    fun checkedInToday(state: AppState, today: LocalDate) = today.iso() in state.checkIns
+
+    /** Which day of the 7-day track the next check-in is (0-based). */
+    fun checkInIndex(state: AppState) = state.checkIns.size % 7
+
+    fun checkIn(state: AppState, today: LocalDate, events: MutableList<GameEvent>): AppState {
+        if (!state.onboarded || checkedInToday(state, today)) return state
+        val i = checkInIndex(state)
+        var s = state.copy(checkIns = (state.checkIns + today.iso()).takeLast(70))
+        s = when (i) {
+            0 -> s.copy(gold = s.gold + 20)
+            1 -> s.copy(gold = s.gold + 30)
+            2 -> addItem(s, Item.MYSTERY_BOX)
+            3 -> s.copy(gold = s.gold + 50)
+            4 -> addItem(s, Item.XP_POTION)
+            5 -> s.copy(gold = s.gold + 80)
+            else -> addItem(addItem(s, Item.SHIELD), Item.MYSTERY_BOX)
+        }
+        events += GameEvent.Message("[SYSTEM] Check-in day ${i + 1}/7: ${CHECK_IN_REWARDS[i]}.")
+        return s
+    }
+
+    /** About one day in three hides a secret bonus for finishing every quest. You only find out when you do. */
+    fun hiddenQuestDay(date: LocalDate): Boolean = Math.floorMod(date.toEpochDay() * 2654435761L, 97L) % 3 == 0L
+
     // ---------- Daily quest reward ----------
 
     /** Finish every required quest today: 1 stat point and a mystery box, once a day. */
@@ -193,7 +223,12 @@ object Rpg {
         if (required.size < 3) return state
         if (required.any { QuestEngine.record(state, it)?.status != QuestStatus.DONE }) return state
         events += GameEvent.Message("[SYSTEM] Daily quest complete. Reward: +1 stat point, 1 mystery box.")
-        return addItem(state.copy(statPoints = state.statPoints + 1, dailyRewardDays = state.dailyRewardDays + today.iso()), Item.MYSTERY_BOX)
+        var s = addItem(state.copy(statPoints = state.statPoints + 1, dailyRewardDays = state.dailyRewardDays + today.iso()), Item.MYSTERY_BOX)
+        if (hiddenQuestDay(today)) {
+            events += GameEvent.Message("[SYSTEM] Hidden quest discovered: Perfect Day. +150 gold, +1 mystery box.")
+            s = addItem(s.copy(gold = s.gold + 150), Item.MYSTERY_BOX)
+        }
+        return s
     }
 
     // ---------- Gates ----------

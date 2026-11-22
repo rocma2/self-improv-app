@@ -103,7 +103,8 @@ object Reminders {
                     else -> "no training, recovery day"
                 }
                 "⚔️ ${quests.size} quests today" to "Training: $train." +
-                    if (penalties.isNotEmpty()) " You still owe: ${penalties.first().title}." else ""
+                    (if (penalties.isNotEmpty()) " You still owe: ${penalties.first().title}." else "") +
+                    (if (!com.ascend.app.domain.Rpg.checkedInToday(s, today)) " Check-in reward waiting: ${com.ascend.app.domain.Rpg.CHECK_IN_REWARDS[com.ascend.app.domain.Rpg.checkInIndex(s)]}." else "")
             }
             Kind.EVENING -> when {
                 penalties.isNotEmpty() -> "🔒 Penalty still open" to "${penalties.first().title}. TikTok and YouTube stay locked until it's done."

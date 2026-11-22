@@ -52,29 +52,10 @@ import kotlin.math.roundToInt
 @Composable
 fun StatsScreen(state: AppState) {
     val today = Repository.today()
+    var open by remember { mutableStateOf<Skill?>(null) }
+    open?.let { sk -> SkillDialog(state, sk) { open = null } }
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        item { SectionTitle("SKILLS") }
-        item {
-            AppCard {
-                Skill.entries.forEach { s ->
-                    val sk = state.skill(s)
-                    val info = Leveling.skillInfo(sk.xp)
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
-                        Text(s.emoji, fontSize = 20.sp, modifier = Modifier.width(32.dp))
-                        Column(Modifier.weight(1f)) {
-                            Row {
-                                Text(s.label, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                                Text("Lv ${info.level}", color = C.gold, fontWeight = FontWeight.Bold)
-                            }
-                            Bar(info.fraction, C.gold, height = 5)
-                            Spacer(Modifier.height(3.dp))
-                            Bar(sk.hp / 100f, C.hp, height = 4)
-                        }
-                    }
-                }
-                Text("Gold = XP to next level. Red = HP. At 0 HP a skill drops a level.", fontSize = 11.sp, color = C.muted)
-            }
-        }
+        item { SkillsRadarCard(state) { open = it } }
 
         item { SectionTitle("PROGRESS THAT DOESN'T PLATEAU") }
         item {
